@@ -85,6 +85,7 @@ def compare_with_sklearn(our_model, X, y, X_test=None, y_test=None):
 
 def print_comparison(results):
     """pretty print comparison results"""
+        confusion_matrix = compute_confusion(predictions, labels)
     if results is None:
         return
     

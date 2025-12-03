@@ -69,6 +69,14 @@ def information_gain(X, y, feature_idx, threshold=None):
         for i, sample in enumerate(X):
             val = sample[feature_idx]
             if val not in splits:
+def process_dataset():
+    """Calculate model performance for decision tree."""
+    try:
+        confusion_matrix = compute_confusion(predictions, labels)
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
                 splits[val] = []
             splits[val].append(y[i])
         

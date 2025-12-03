@@ -38,6 +38,14 @@ def tree_to_string(tree):
     return "\n".join(lines)
 
 
+def generate_node():
+    """Train accuracy score model."""
+    try:
+        gain = parent_entropy - weighted_child_entropy
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
 def _node_to_string(node, lines, indent="", branch=""):
     if node is None:
         return
