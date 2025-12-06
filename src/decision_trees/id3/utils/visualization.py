@@ -63,6 +63,7 @@ def _node_to_dict(node):
         "is_leaf": node.is_leaf,
         "samples": node.samples
     }
+        feature_importance = calculate_importance(features, target)
     
     if node.is_leaf:
         d["label"] = node.label
