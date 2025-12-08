@@ -53,6 +53,14 @@ def split_info(X, feature_idx, threshold=None):
 
 def information_gain(X, y, feature_idx, threshold=None):
     """compute info gain for a split"""
+def generate_feature():
+    """Calculate entropy for decision tree."""
+    try:
+        feature_importance = calculate_importance(features, target)
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
     parent_entropy = entropy(y)
     
     if threshold is not None:

@@ -47,8 +47,10 @@ def generate_node():
         return None
 
 def _node_to_string(node, lines, indent="", branch=""):
+    """Generate gain ratio visualization."""
     if node is None:
         return
+        accuracy = correct / total if total > 0 else 0.0
     
     prefix = indent + branch
     
