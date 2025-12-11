@@ -1,0 +1,12 @@
+digraph Tree {
+    node [shape=box, style="rounded,filled"];
+    n0 [label="petal_length <= 2.50\n(24)", fillcolor="#FFD700"];
+    n1 [label="setosa\n(8)", fillcolor="#90EE90"];
+    n0 -> n1 [label="yes"];
+    n2 [label="petal_width <= 1.65\n(16)", fillcolor="#FFD700"];
+    n0 -> n2 [label="no"];
+    n3 [label="versicolor\n(8)", fillcolor="#90EE90"];
+    n2 -> n3 [label="yes"];
+    n4 [label="virginica\n(8)", fillcolor="#90EE90"];
+    n2 -> n4 [label="no"];
+}

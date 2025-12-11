@@ -1,0 +1,18 @@
+digraph Tree {
+    node [shape=box, style="rounded,filled"];
+    n0 [label="outlook?\n(14 samples)", fillcolor="#ADD8E6"];
+    n1 [label="humidity?\n(5 samples)", fillcolor="#ADD8E6"];
+    n0 -> n1 [label="sunny"];
+    n2 [label="no\n(3 samples)", fillcolor="#90EE90"];
+    n1 -> n2 [label="high"];
+    n3 [label="yes\n(2 samples)", fillcolor="#90EE90"];
+    n1 -> n3 [label="normal"];
+    n4 [label="yes\n(4 samples)", fillcolor="#90EE90"];
+    n0 -> n4 [label="overcast"];
+    n5 [label="wind?\n(5 samples)", fillcolor="#ADD8E6"];
+    n0 -> n5 [label="rain"];
+    n6 [label="yes\n(3 samples)", fillcolor="#90EE90"];
+    n5 -> n6 [label="weak"];
+    n7 [label="no\n(2 samples)", fillcolor="#90EE90"];
+    n5 -> n7 [label="strong"];
+}

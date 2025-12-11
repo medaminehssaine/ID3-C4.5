@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "decision-trees"
+version = "1.0.0"
+description = "ID3 and C4.5 decision tree implementations"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+compare = ["scikit-learn"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
