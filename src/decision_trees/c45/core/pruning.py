@@ -1,116 +1,112 @@
-"""post-pruning for c4.5 trees"""
-from collections import Counter
+"""post-pruning for c4.5 trees using pessimistic error pruning"""
+import math
 
-
-def reduced_error_prune(tree, X_val, y_val):
+def pessimistic_prune(node, confidence=0.25):
     """
-    reduced error pruning using validation set
-    replaces subtrees with leaves if it improves validation accuracy
+    Apply pessimistic error pruning to the tree (in-place).
+    Uses Wilson Score Interval to estimate upper bound of error rate.
+    
+    Args:
+        node: The current node to prune
+        confidence: Confidence level (default 0.25 for C4.5)
     """
-    if tree.root is None:
-        return
-    
-    # get baseline accuracy
-    baseline = _accuracy(tree, X_val, y_val)
-    
-    # try pruning each internal node
-    changed = True
-    while changed:
-        changed = False
-        nodes = _get_internal_nodes(tree.root)
-        
-        for node in nodes:
-            if node.is_leaf:
-                continue
-            
-            # save original state
-            was_leaf = node.is_leaf
-            old_children = node.children
-            old_left = node.left
-            old_right = node.right
-            old_continuous = node.is_continuous
-            
-            # try making it a leaf
-            node.is_leaf = True
-            
-            new_acc = _accuracy(tree, X_val, y_val)
-            
-            if new_acc >= baseline:
-                # pruning helped or maintained accuracy
-                baseline = new_acc
-                node.children = {}
-                node.left = None
-                node.right = None
-                changed = True
-            else:
-                # restore
-                node.is_leaf = was_leaf
-                node.children = old_children
-                node.left = old_left
-                node.right = old_right
-                node.is_continuous = old_continuous
-
-
-def prune_tree(tree, X_val, y_val):
-    """main pruning interface"""
-    reduced_error_prune(tree, X_val, y_val)
-
-
-def _accuracy(tree, X, y):
-    """helper to compute accuracy"""
-    if not X:
-        return 1.0
-    preds = tree.predict(X)
-    return sum(1 for t, p in zip(y, preds) if t == p) / len(y)
-
-
-def _get_internal_nodes(node, nodes=None):
-    """collect all internal (non-leaf) nodes"""
-    if nodes is None:
-        nodes = []
-    
-    if not node.is_leaf:
-        nodes.append(node)
-        
-        if node.is_continuous:
-            if node.left:
-                _get_internal_nodes(node.left, nodes)
-            if node.right:
-                _get_internal_nodes(node.right, nodes)
-        else:
-            for child in node.children.values():
-                _get_internal_nodes(child, nodes)
-    
-    return nodes
-
-
-def pessimistic_error_rate(node, z=1.0):
-    """
-    pessimistic error estimate for pruning decisions
-    uses continuity correction (quinlan's c4.5)
-    """
-    n = node.samples
-    e = n - max(node.class_distribution.values()) if node.class_distribution else 0
-    
-    # add pessimistic correction
-    return (e + 0.5) / n if n > 0 else 0
-
-
-def subtree_error(node):
-    """compute total error across all leaves of subtree"""
     if node.is_leaf:
-        n = node.samples
-        e = n - max(node.class_distribution.values()) if node.class_distribution else 0
-        return e + 0.5  # pessimistic correction
-    
-    total = 0.0
+        return
+
+    # Recurse first (bottom-up pruning)
     if node.is_continuous:
         if node.left:
-            total += subtree_error(node.left)
+            pessimistic_prune(node.left, confidence)
         if node.right:
-            total += subtree_error(node.right)
+            pessimistic_prune(node.right, confidence)
     else:
         for child in node.children.values():
-            total += subtree_error(child)
+            pessimistic_prune(child, confidence)
+            
+    # Now check if we should prune this node
+    # Calculate error estimate for this node if it were a leaf
+    leaf_error_estimate = _calculate_error_estimate(node, confidence)
     
-    return total
+    # Calculate error estimate for the subtree (sum of children's errors)
+    subtree_error_estimate = _calculate_subtree_error(node, confidence)
+    
+    # If leaf error is less than or equal to subtree error, prune!
+    # (Quinlan's C4.5 favors pruning when errors are equal or less)
+    if leaf_error_estimate <= subtree_error_estimate:
+        # Make it a leaf
+        node.is_leaf = True
+        node.children = {}
+        node.left = None
+        node.right = None
+        node.is_continuous = False
+        # Prediction is already set (majority class)
+
+def _calculate_error_estimate(node, confidence=0.25):
+    """
+    Calculate pessimistic error estimate for a node using Wilson Score Interval.
+    Upper Confidence Limit (UCL).
+    """
+    # Total samples reaching this node
+    n = node.samples
+    if n == 0:
+        return 0.0
+    
+    # Observed errors (misclassifications if this were a leaf)
+    # Error = Total - Majority Class Count
+    if not node.class_distribution:
+        return 0.0
+        
+    majority_count = max(node.class_distribution.values())
+    f = (n - majority_count) / n  # Observed error rate
+    
+    # Get z-score for confidence
+    z = _get_z_score(confidence)
+    
+    # Wilson Score Interval Formula for Upper Bound
+    # (f + z^2/2n + z * sqrt(f/n - f^2/n + z^2/4n^2)) / (1 + z^2/n)
+    
+    numerator = f + (z**2) / (2*n) + z * math.sqrt((f/n) - (f**2)/n + (z**2)/(4*(n**2)))
+    denominator = 1 + (z**2) / n
+    
+    ucl = numerator / denominator
+    
+    # Return estimated number of errors
+    return ucl * n
+
+def _calculate_subtree_error(node, confidence):
+    """Sum of error estimates of all leaves in the subtree."""
+    if node.is_leaf:
+        return _calculate_error_estimate(node, confidence)
+    
+    total_error = 0.0
+    if node.is_continuous:
+        if node.left:
+            total_error += _calculate_subtree_error(node.left, confidence)
+        if node.right:
+            total_error += _calculate_subtree_error(node.right, confidence)
+    else:
+        for child in node.children.values():
+            total_error += _calculate_subtree_error(child, confidence)
+            
+    return total_error
+
+def _get_z_score(confidence):
+    """Get z-score for confidence level (approximate)."""
+    # Common z-scores
+    # 0.25 (25%) -> 0.674 (Quinlan's default)
+    if confidence == 0.25:
+        return 0.69 # Approximation often used
+    
+    # Simple lookup for common values
+    # Note: C4.5 "confidence" is actually "certainty factor" (CF)
+    # Lower CF = more pruning. 25% is standard.
+    # z = stats.norm.ppf(1 - (confidence/2)) ? No, C4.5 logic is specific.
+    # We'll stick to the table from decision_trees.py for consistency
+    z_table = {
+        0.001: 3.09, 0.005: 2.58, 0.01: 2.33, 0.05: 1.65,
+        0.10: 1.28, 0.15: 1.04, 0.20: 0.84, 0.25: 0.69,
+        0.30: 0.52, 0.40: 0.25, 0.50: 0.0
+    }
+    # Find closest
+    closest = min(z_table.keys(), key=lambda x: abs(x - confidence))
+    return z_table[closest]

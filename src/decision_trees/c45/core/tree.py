@@ -19,10 +19,11 @@ class C45Classifier:
     """
     
     def __init__(self, max_depth=None, min_samples_split=2, 
-                 min_gain_ratio=0.01):
+                 min_gain_ratio=0.01, confidence=0.25):
         self.max_depth = max_depth
         self.min_samples_split = min_samples_split
         self.min_gain_ratio = min_gain_ratio
+        self.confidence = confidence
         
         self.root = None
         self.feature_names = None
@@ -53,7 +54,14 @@ class C45Classifier:
         # available features (can be reused for continuous in c4.5)
         available = set(range(self.n_features_))
         
+        # Build initial tree
         self.root = self._build_tree(X, y, available, depth=0)
+        
+        # Apply Pessimistic Error Pruning (Wilson Score)
+        from .pruning import pessimistic_prune
+        if self.root:
+            pessimistic_prune(self.root, self.confidence)
+            
         return self
     
     def _build_tree(self, X, y, available_features, depth):

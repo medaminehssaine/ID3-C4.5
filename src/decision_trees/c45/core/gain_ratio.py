@@ -122,18 +122,19 @@ def best_threshold(X, y, feature_idx):
     # sort by value
     pairs.sort(key=lambda x: x[0])
     
-    # find candidate thresholds (midpoints between different classes)
+    # find candidate thresholds (where class changes)
     candidates = []
     for i in range(len(pairs) - 1):
         if pairs[i][1] != pairs[i+1][1]:
-            midpoint = (pairs[i][0] + pairs[i+1][0]) / 2
-            candidates.append(midpoint)
+            # Quinlan's C4.5: Threshold is v_i (largest value in lower partition)
+            # Not the midpoint
+            threshold = pairs[i][0]
+            candidates.append(threshold)
     
     if not candidates:
-        # no class change, try all midpoints
+        # no class change, try all unique values except last
         values = sorted(set(p[0] for p in pairs))
-        candidates = [(values[i] + values[i+1]) / 2 
-                     for i in range(len(values) - 1)]
+        candidates = values[:-1]
     
     if not candidates:
         return None, 0.0
