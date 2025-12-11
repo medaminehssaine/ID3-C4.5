@@ -167,10 +167,7 @@ from decision_trees import ID3Classifier, C45Classifier
 
 ## 👥 Team
 
-KDD Course Project — Decision Tree Algorithms
-Mohammed Amine Hssaine
-Ouissam Benalla
-Mohamed Taha El Younsi
+KDD Course Project — ID3 & C4.5 Decision Trees | Mohammed Amine Hssaine | Ouissam Benalla | Mohamed Taha El Younsi
 
 ---
 
