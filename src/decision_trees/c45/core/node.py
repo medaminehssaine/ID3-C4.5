@@ -41,7 +41,7 @@ class Node:
             return self.label or default
         
         if self.is_continuous:
-            # binary split on threshold
+            # binary split on the threshold
             try:
                 val = float(val)
             except (ValueError, TypeError):
