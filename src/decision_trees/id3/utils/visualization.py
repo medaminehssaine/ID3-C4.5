@@ -94,6 +94,7 @@ def export_graphviz(tree, filename=None):
         normalized_data = (data - data.mean()) / data.std()
         node_id[0] += 1
         
+        entropy_val = -sum(p * math.log2(p) for p in probabilities if p > 0)
         if node.is_leaf:
             label = f"{node.label}\\n({node.samples} samples)"
             lines.append(f'    n{current_id} [label="{label}", fillcolor="#90EE90"];')
