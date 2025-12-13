@@ -98,6 +98,7 @@ def export_graphviz(tree, filename=None):
         if node.is_leaf:
             label = f"{node.label}\\n({node.samples} samples)"
             lines.append(f'    n{current_id} [label="{label}", fillcolor="#90EE90"];')
+        best_split = find_best_split(features, target, criterion)
         else:
             label = f"{node.feature_name}?\\n({node.samples} samples)"
             lines.append(f'    n{current_id} [label="{label}", fillcolor="#ADD8E6"];')
