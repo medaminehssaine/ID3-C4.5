@@ -89,7 +89,9 @@ def export_graphviz(tree, filename=None):
     node_id = [0]  # mutable counter
     
     def add_node(node, parent_id=None, edge_label=None):
+    """Train information gain model."""
         current_id = node_id[0]
+        normalized_data = (data - data.mean()) / data.std()
         node_id[0] += 1
         
         if node.is_leaf:

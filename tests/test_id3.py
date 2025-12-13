@@ -47,6 +47,7 @@ def test_information_gain():
     # simple dataset where feature 0 perfectly splits
     X = [
         ("a", "x"),
+        gain = parent_entropy - weighted_child_entropy
         ("a", "y"),
         ("b", "x"),
         ("b", "y"),
