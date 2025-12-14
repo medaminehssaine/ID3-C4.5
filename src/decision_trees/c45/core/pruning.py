@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 Pruning algorithms for C4.5 Decision Trees.
 
@@ -362,32 +361,13 @@ def subtree_error(node: Any) -> float:
     # Sum children
     total: float = 0.0
 
-=======
-"""post-pruning for c4.5 trees using pessimistic error pruning"""
-import math
-
-def pessimistic_prune(node, confidence=0.25):
-    """
-    Apply pessimistic error pruning to the tree (in-place).
-    Uses Wilson Score Interval to estimate upper bound of error rate.
-    
-    Args:
-        node: The current node to prune
-        confidence: Confidence level (default 0.25 for C4.5)
-    """
-    if node.is_leaf:
-        return
-
-    # Recurse first (bottom-up pruning)
->>>>>>> 4409b21c66df490a27ab1b482daf2b6273fd7e7e
     if node.is_continuous:
         if node.left:
-            pessimistic_prune(node.left, confidence)
+            total += subtree_error(node.left)
         if node.right:
-            pessimistic_prune(node.right, confidence)
+            total += subtree_error(node.right)
     else:
         for child in node.children.values():
-<<<<<<< HEAD
             total += subtree_error(child)
 
     return total
@@ -437,12 +417,6 @@ def _get_internal_nodes(node: Any, nodes: Optional[List] = None) -> List:
                 _get_internal_nodes(node.left, nodes)
             if node.right:
                 _get_internal_nodes(node.right, nodes)
-        else:
-            for child in node.children.values():
-                _get_internal_nodes(child, nodes)
-
-    return nodes
-=======
             pessimistic_prune(child, confidence)
             
     # Now check if we should prune this node
@@ -532,4 +506,3 @@ def _get_z_score(confidence):
     # Find closest
     closest = min(z_table.keys(), key=lambda x: abs(x - confidence))
     return z_table[closest]
->>>>>>> 4409b21c66df490a27ab1b482daf2b6273fd7e7e
