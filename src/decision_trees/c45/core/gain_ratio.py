@@ -322,12 +322,27 @@ def best_threshold(
 
     if len(triplets) < 2:
         return None, 0.0
+<<<<<<< HEAD
 
     # Sort by value
     triplets.sort(key=lambda x: x[0])
 
     # Find candidate thresholds (where class changes)
     candidates = []
+=======
+    
+    # sort by value
+    pairs.sort(key=lambda x: x[0])
+    
+    # find candidate thresholds (where class changes)
+    candidates = []
+    for i in range(len(pairs) - 1):
+        if pairs[i][1] != pairs[i+1][1]:
+            # Quinlan's C4.5: Threshold is v_i (largest value in lower partition)
+            # Not the midpoint
+            threshold = pairs[i][0]
+            candidates.append(threshold)
+>>>>>>> 4409b21c66df490a27ab1b482daf2b6273fd7e7e
     
     for i in range(len(triplets) - 1):
         if triplets[i][1] != triplets[i + 1][1]:
@@ -340,6 +355,7 @@ def best_threshold(
     candidates = sorted(list(set(candidates)))
 
     if not candidates:
+<<<<<<< HEAD
         # Fallback
         values = sorted(list(set(t[0] for t in triplets)))
         if len(values) > 1:
@@ -348,6 +364,16 @@ def best_threshold(
             return None, 0.0
 
     # Find threshold with best Gain Ratio
+=======
+        # no class change, try all unique values except last
+        values = sorted(set(p[0] for p in pairs))
+        candidates = values[:-1]
+    
+    if not candidates:
+        return None, 0.0
+    
+    # find best threshold by gain ratio
+>>>>>>> 4409b21c66df490a27ab1b482daf2b6273fd7e7e
     best_t = None
     best_gr = -1.0
 

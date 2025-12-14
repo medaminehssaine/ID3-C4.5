@@ -73,6 +73,7 @@ class C45Classifier:
         >>> print(clf.feature_types_)  # ['continuous', 'categorical', ...]
         >>> predictions = clf.predict(X_test)
     """
+<<<<<<< HEAD
 
     def __init__(
         self,
@@ -80,6 +81,23 @@ class C45Classifier:
         min_samples_split: int = 2,
         min_gain_ratio: float = 0.01
     ) -> None:
+=======
+    
+    def __init__(self, max_depth=None, min_samples_split=2, 
+                 min_gain_ratio=0.01, confidence=0.25):
+        self.max_depth = max_depth
+        self.min_samples_split = min_samples_split
+        self.min_gain_ratio = min_gain_ratio
+        self.confidence = confidence
+        
+        self.root = None
+        self.feature_names = None
+        self.classes_ = None
+        self.n_features_ = None
+        self.feature_types_ = None  # 'continuous' or 'categorical'
+    
+    def fit(self, X, y, feature_names=None):
+>>>>>>> 4409b21c66df490a27ab1b482daf2b6273fd7e7e
         """
         Initialize C4.5 classifier.
 
@@ -144,9 +162,22 @@ class C45Classifier:
         # Build tree
         self.root = self._build_tree(X, y, weights, available, depth=0)
         
+<<<<<<< HEAD
         # Prune tree
         if self.root is not None:
             prune_tree(self, method="pessimistic")
+=======
+        # available features (can be reused for continuous in c4.5)
+        available = set(range(self.n_features_))
+        
+        # Build initial tree
+        self.root = self._build_tree(X, y, available, depth=0)
+        
+        # Apply Pessimistic Error Pruning (Wilson Score)
+        from .pruning import pessimistic_prune
+        if self.root:
+            pessimistic_prune(self.root, self.confidence)
+>>>>>>> 4409b21c66df490a27ab1b482daf2b6273fd7e7e
             
         return self
 
