@@ -1,148 +1,276 @@
-"""id3 decision tree classifier"""
+"""
+ID3 Decision Tree Classifier.
+
+Implementation of Quinlan's ID3 (Iterative Dichotomiser 3) algorithm
+for classification using Information Gain as the splitting criterion.
+
+ID3 is designed for categorical features only and creates multi-way
+splits (one branch per unique feature value).
+"""
+from __future__ import annotations
+
 from collections import Counter
+from typing import Any, Dict, List, Optional, Set, Tuple
+
 from .entropy import entropy, information_gain
 from .node import Node
+
+# Type aliases
+Sample = Tuple[Any, ...]
+Dataset = List[Sample]
+Labels = List[Any]
 
 
 class ID3Classifier:
     """
-    id3 decision tree classifier
-    
-    the classic algorithm by quinlan (1986)
-    uses information gain to select splitting features
+    ID3 Decision Tree Classifier.
+
+    Implements the classic ID3 algorithm by Quinlan (1986) using
+    Information Gain to select splitting features. Best suited for
+    categorical/discrete features.
+
+    Algorithm:
+        1. If all samples belong to same class → create leaf
+        2. If no features remaining → create leaf with majority class
+        3. Select feature with highest Information Gain
+        4. Create internal node splitting on that feature
+        5. Recursively build subtrees for each feature value
+        6. Remove used feature from available set (no reuse in ID3)
+
+    Attributes:
+        max_depth: Maximum depth of the tree (None = unlimited).
+        min_samples_split: Minimum samples required to split a node.
+        root: Root node of the fitted tree.
+        feature_names: Names of the features.
+        classes_: Unique class labels.
+        n_features_: Number of features.
+
+    Reference:
+        Quinlan, J.R. (1986). "Induction of Decision Trees",
+        Machine Learning 1:81-106
+
+    Examples:
+        >>> from decision_trees.id3 import ID3Classifier
+        >>> clf = ID3Classifier()
+        >>> clf.fit(X_train, y_train, feature_names)
+        >>> predictions = clf.predict(X_test)
     """
-    
-    def __init__(self, max_depth=None, min_samples_split=2):
-        self.max_depth = max_depth
-        self.min_samples_split = min_samples_split
-        self.root = None
-        self.feature_names = None
-        self.classes_ = None
-        self.n_features_ = None
-    
-    def fit(self, X, y, feature_names=None):
+
+    def __init__(
+        self,
+        max_depth: Optional[int] = None,
+        min_samples_split: int = 2
+    ) -> None:
         """
-        build decision tree from training data
+        Initialize ID3 classifier.
+
+        Args:
+            max_depth: Maximum tree depth. None means unlimited.
+            min_samples_split: Minimum samples needed to attempt a split.
+        """
+        self.max_depth: Optional[int] = max_depth
+        self.min_samples_split: int = min_samples_split
         
-        X: list of samples (list of lists)
-        y: list of labels
-        feature_names: optional names for features
+        self.root: Optional[Node] = None
+        self.feature_names: Optional[List[str]] = None
+        self.classes_: Optional[List[Any]] = None
+        self.n_features_: int = 0
+
+    def fit(
+        self,
+        X: Dataset,
+        y: Labels,
+        feature_names: Optional[List[str]] = None
+    ) -> 'ID3Classifier':
         """
+        Build decision tree from training data.
+
+        Args:
+            X: Training samples as list of tuples/lists.
+            y: Target class labels.
+            feature_names: Optional names for features (for visualization).
+
+        Returns:
+            self: Fitted classifier.
+
+        Raises:
+            ValueError: If X and y have different lengths.
+        """
+        if len(X) != len(y):
+            raise ValueError("X and y must have the same length")
+
         self.n_features_ = len(X[0]) if X else 0
-        self.feature_names = feature_names or [f"f{i}" for i in range(self.n_features_)]
+        self.feature_names = feature_names or [
+            f"f{i}" for i in range(self.n_features_)
+        ]
         self.classes_ = list(set(y))
-        
-        # available features for splitting
-        available = set(range(self.n_features_))
-        
+
+        # Available features for splitting
+        available: Set[int] = set(range(self.n_features_))
+
         self.root = self._build_tree(X, y, available, depth=0)
         return self
-    
-    def _build_tree(self, X, y, available_features, depth):
-        """recursively build the tree"""
+
+    def _build_tree(
+        self,
+        X: Dataset,
+        y: Labels,
+        available_features: Set[int],
+        depth: int
+    ) -> Node:
+        """
+        Recursively build the decision tree.
+
+        Args:
+            X: Current subset of samples.
+            y: Current subset of labels.
+            available_features: Set of feature indices still available.
+            depth: Current depth in the tree.
+
+        Returns:
+            Node: Root of the (sub)tree.
+        """
         node = Node()
         node.samples = len(y)
         node.depth = depth
-        
-        # count class distribution
-        counts = Counter(y)
-        most_common = counts.most_common(1)[0][0]
-        node.label = most_common  # default prediction
-        
-        # stopping conditions
+
+        # Count class distribution
+        counts: Counter = Counter(y)
+        most_common: Any = counts.most_common(1)[0][0]
+        node.label = most_common  # Default prediction
+
+        # Stopping condition: pure node
         if len(counts) == 1:
-            # pure node
             node.is_leaf = True
             return node
-        
+
+        # Stopping condition: no features left
         if not available_features:
-            # no more features to split
             node.is_leaf = True
             return node
-        
+
+        # Stopping condition: max depth reached
         if self.max_depth is not None and depth >= self.max_depth:
             node.is_leaf = True
             return node
-        
+
+        # Stopping condition: too few samples
         if len(y) < self.min_samples_split:
             node.is_leaf = True
             return node
-        
-        # find best feature to split on
-        best_feature = None
-        best_gain = -1
-        
+
+        # Find best feature to split on
+        best_feature: Optional[int] = None
+        best_gain: float = -1.0
+
         for f in available_features:
-            gain = information_gain(X, y, f)
+            gain: float = information_gain(X, y, f)
             if gain > best_gain:
                 best_gain = gain
                 best_feature = f
-        
-        # no information gain possible
-        if best_gain <= 0:
+
+        # No information gain possible
+        if best_gain <= 0 or best_feature is None:
             node.is_leaf = True
             return node
-        
-        # create internal node
+
+        # Create internal node
         node.feature = best_feature
         node.feature_name = self.feature_names[best_feature]
         node.is_leaf = False
-        
-        # split data by feature value
-        splits = {}
+
+        # Split data by feature value
+        splits: Dict[Any, Tuple[Dataset, Labels]] = {}
         for i, sample in enumerate(X):
             val = sample[best_feature]
             if val not in splits:
                 splits[val] = ([], [])
             splits[val][0].append(sample)
             splits[val][1].append(y[i])
-        
-        # remove used feature (id3 doesn't reuse features)
-        remaining = available_features - {best_feature}
-        
-        # recursively build children
+
+        # Remove used feature (ID3 doesn't reuse features)
+        remaining: Set[int] = available_features - {best_feature}
+
+        # Recursively build children
         for val, (X_subset, y_subset) in splits.items():
-            child = self._build_tree(X_subset, y_subset, remaining, depth + 1)
+            child: Node = self._build_tree(X_subset, y_subset, remaining, depth + 1)
             node.children[val] = child
-        
+
         return node
-    
-    def predict(self, X):
-        """predict class labels for samples"""
+
+    def predict(self, X: Dataset) -> Labels:
+        """
+        Predict class labels for samples.
+
+        Args:
+            X: Samples to predict.
+
+        Returns:
+            List of predicted class labels.
+
+        Raises:
+            ValueError: If tree is not fitted.
+        """
         if self.root is None:
-            raise ValueError("tree not fitted yet, call fit() first")
-        
+            raise ValueError("Tree not fitted yet, call fit() first")
+
         return [self.root.predict_one(sample) for sample in X]
-    
-    def predict_one(self, sample):
-        """predict class for single sample"""
+
+    def predict_one(self, sample: Sample) -> Any:
+        """
+        Predict class for a single sample.
+
+        Args:
+            sample: Single sample as tuple.
+
+        Returns:
+            Predicted class label.
+
+        Raises:
+            ValueError: If tree is not fitted.
+        """
         if self.root is None:
-            raise ValueError("tree not fitted yet")
+            raise ValueError("Tree not fitted yet")
         return self.root.predict_one(sample)
-    
-    def get_depth(self):
-        """return max depth of tree"""
+
+    def get_depth(self) -> int:
+        """
+        Get maximum depth of the tree.
+
+        Returns:
+            Maximum depth (0 if tree is just a leaf).
+        """
         if self.root is None:
             return 0
         return self._get_depth(self.root)
-    
-    def _get_depth(self, node):
+
+    def _get_depth(self, node: Node) -> int:
+        """Recursively calculate tree depth."""
         if node.is_leaf:
             return 0
+        if not node.children:
+            return 0
         return 1 + max(self._get_depth(child) for child in node.children.values())
-    
-    def get_n_leaves(self):
-        """count leaf nodes"""
+
+    def get_n_leaves(self) -> int:
+        """
+        Count total number of leaf nodes.
+
+        Returns:
+            Number of leaf nodes in the tree.
+        """
         if self.root is None:
             return 0
         return self._count_leaves(self.root)
-    
-    def _count_leaves(self, node):
+
+    def _count_leaves(self, node: Node) -> int:
+        """Recursively count leaf nodes."""
         if node.is_leaf:
             return 1
         return sum(self._count_leaves(child) for child in node.children.values())
-    
-    def __repr__(self):
+
+    def __repr__(self) -> str:
+        """Return string representation."""
         if self.root is None:
             return "ID3Classifier(not fitted)"
         return f"ID3Classifier(depth={self.get_depth()}, leaves={self.get_n_leaves()})"

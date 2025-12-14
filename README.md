@@ -1,13 +1,14 @@
 # 🌳 ID3 & C4.5 Decision Trees
 
 > Professional implementations of Quinlan's classic decision tree algorithms for the KDD course.
+> Built from scratch with strict adherence to the original research papers.
 
 <div align="center">
 
-| Algorithm | Year | Criterion | Continuous | Pruning |
-|:---------:|:----:|:---------:|:----------:|:-------:|
-| **ID3** | 1986 | Info Gain | ✗ | ✗ |
-| **C4.5** | 1993 | Gain Ratio | ✓ | ✓ |
+| Algorithm | Year | Criterion | Continuous | Missing Values | Pruning |
+|:---------:|:----:|:---------:|:----------:|:--------------:|:-------:|
+| **ID3** | 1986 | Info Gain | ✗ | ✗ | ✗ |
+| **C4.5** | 1993 | Gain Ratio | ✓ | ✓ | ✓ |
 
 </div>
 
@@ -27,10 +28,26 @@
 │       ├── core/            # gain_ratio, pruning
 │       ├── data/            # continuous datasets
 │       └── utils/           # visualization
-├── tests/                   # unit tests (26 total)
+├── tests/                   # unit tests (40+ tests)
 ├── examples/                # demo scripts
 ├── outputs/                 # generated .dot files
+├── REPORT_STRUCTURE.md      # theory-to-code mapping
 └── pyproject.toml           # pip installable
+```
+
+---
+
+## 🔧 Installation
+
+```bash
+# Clone and navigate
+cd "ID3 & C4.5"
+
+# Install as editable package
+pip install -e .
+
+# Optional: install test and comparison dependencies
+pip install -e ".[dev,compare]"
 ```
 
 ---
@@ -56,7 +73,93 @@ from decision_trees.c45.data import load_iris
 X, y, names = load_iris()
 clf = C45Classifier()
 clf.fit(X, y, names)
-# auto-detects continuous features and finds thresholds
+print(clf.feature_types_)  # ['continuous', 'continuous', ...]
+# Auto-detects continuous features and finds thresholds
+```
+
+---
+
+## 📐 Mathematical Foundations
+
+### Entropy (Shannon Entropy)
+
+The foundation of both ID3 and C4.5. Measures uncertainty in a dataset.
+
+```
+H(S) = -Σᵢ p(cᵢ) × log₂(p(cᵢ))
+```
+
+**Properties:**
+- `H(S) = 0` for pure sets (all same class)
+- `H(S) = 1` for balanced binary (50/50 split)
+- `H(S) = log₂(k)` for k equally distributed classes
+
+---
+
+### Information Gain (ID3 Criterion)
+
+Measures reduction in entropy after splitting.
+
+```
+IG(S, A) = H(S) - Σᵥ (|Sᵥ|/|S|) × H(Sᵥ)
+```
+
+**Problem:** Biased toward high-cardinality features!
+
+*Example:* A unique ID column always has maximum IG but provides no generalization.
+
+---
+
+### Gain Ratio (C4.5 Solution)
+
+Normalizes Information Gain to reduce bias.
+
+```
+GR(S, A) = IG(S, A) / SI(S, A)
+
+SI(S, A) = -Σᵥ (|Sᵥ|/|S|) × log₂(|Sᵥ|/|S|)
+```
+
+**Why it works:**
+- Split Information (SI) is high for features with many values
+- Dividing IG by SI penalizes high-cardinality features
+- `GR ≤ IG` always holds (SI ≥ 1 for 2+ partitions)
+
+**Mathematical Proof:**
+```
+SI(S,A) = -Σᵥ pᵥ × log₂(pᵥ)  where pᵥ = |Sᵥ|/|S|
+
+For n equally sized partitions: SI = log₂(n) ≥ 1 when n ≥ 2
+Therefore: GR = IG/SI ≤ IG
+```
+
+---
+
+### Continuous Attribute Handling
+
+C4.5 finds optimal thresholds for numeric features using binary splits.
+
+**Algorithm:**
+1. Sort values
+2. Find midpoints where class changes
+3. Evaluate GR for each candidate threshold
+4. Choose threshold with maximum GR
+
+**Key difference from ID3:** Continuous features can be reused in subtrees!
+
+---
+
+### Pessimistic Error Pruning
+
+C4.5's default pruning method (no validation set required).
+
+```
+Pessimistic Error = (errors + 0.5) / N
+```
+
+Uses Wilson score interval for tighter bounds:
+```
+UCB = (f + z²/2n + z×√(f(1-f)/n + z²/4n²)) / (1 + z²/n)
 ```
 
 ---
@@ -64,9 +167,21 @@ clf.fit(X, y, names)
 ## 🧪 Testing
 
 ```bash
-python tests/test_id3.py   # 15 tests ✓
-python tests/test_c45.py   # 11 tests ✓
+# Run all tests
+python -m pytest tests/ -v
+
+# Or run individually
+python tests/test_id3.py   # 21 tests
+python tests/test_c45.py   # 23 tests
 ```
+
+### Key Test Cases
+
+| Test | Formula Verified |
+|------|------------------|
+| `test_entropy_classic` | H([9+, 5-]) ≈ 0.9403 |
+| `test_gain_ratio_less_than_ig` | GR ≤ IG always |
+| `test_best_threshold` | Optimal threshold at class boundary |
 
 ---
 
@@ -87,56 +202,16 @@ python examples/demo_c45.py   # gain ratio, thresholds, pruning
 
 ---
 
-## 📚 Algorithm Details
+## 📚 References
 
-### ID3 (Iterative Dichotomiser 3)
+1. **Quinlan, J.R. (1986).** *"Induction of Decision Trees"*, Machine Learning 1:81-106
+   - Original ID3 algorithm
 
-```
-function ID3(D, features):
-    if all samples same class → return leaf
-    if no features left → return majority class
-    
-    best = argmax(features, key=InformationGain)
-    node = new Node(best)
-    
-    for each value v of best:
-        subset = samples where feature[best] = v
-        node.children[v] = ID3(subset, features - {best})
-    
-    return node
-```
+2. **Quinlan, J.R. (1993).** *"C4.5: Programs for Machine Learning"*, Morgan Kaufmann
+   - Gain Ratio, continuous attributes, pruning
 
-**Key formula:**
-```
-H(S) = -Σ p(c) × log₂(p(c))        # entropy
-IG(S, A) = H(S) - Σ (|Sᵥ|/|S|) × H(Sᵥ)   # info gain
-```
-
----
-
-### C4.5 Improvements
-
-| Feature | How it works |
-|---------|--------------|
-| **Gain Ratio** | `GR = IG / SplitInfo` — penalizes high-cardinality |
-| **Continuous** | Binary splits at optimal thresholds |
-| **Missing** | Distributes samples proportionally |
-| **Pruning** | Reduced error pruning on validation set |
-
----
-
-## 🔧 Installation
-
-```bash
-# run directly (no install needed)
-python examples/demo_id3.py
-
-# or install as package
-pip install -e .
-
-# then import anywhere
-from decision_trees import ID3Classifier, C45Classifier
-```
+3. **Shannon, C.E. (1948).** *"A Mathematical Theory of Communication"*
+   - Foundation of entropy concept
 
 ---
 
@@ -167,7 +242,13 @@ from decision_trees import ID3Classifier, C45Classifier
 
 ## 👥 Team
 
-KDD Course Project — ID3 & C4.5 Decision Trees | Mohammed Amine Hssaine | Ouissam Benalla | Mohamed Taha El Younsi
+KDD Course Project — ID3 & C4.5 Decision Trees
+
+| Name | Role |
+|------|------|
+| Mohammed Amine Hssaine | Implementation |
+| Ouissam Benalla | Implementation |
+| Mohamed Taha El Younsi | Implementation |
 
 ---
 
