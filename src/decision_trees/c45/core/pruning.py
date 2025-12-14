@@ -20,9 +20,9 @@ if TYPE_CHECKING:
 
 def prune_tree(
     tree: Any,
-    X_val: List[tuple],
-    y_val: List[Any],
-    method: str = "reduced_error"
+    X_val: Optional[List[tuple]] = None,
+    y_val: Optional[List[Any]] = None,
+    method: str = "pessimistic"
 ) -> None:
     """
     Apply post-pruning to a fitted C4.5 tree.
@@ -32,8 +32,8 @@ def prune_tree(
 
     Args:
         tree: Fitted C45Classifier instance.
-        X_val: Validation dataset.
-        y_val: Validation labels.
+        X_val: Validation dataset (required for reduced_error).
+        y_val: Validation labels (required for reduced_error).
         method: Pruning method - "reduced_error" or "pessimistic".
 
     Reference:
@@ -41,8 +41,12 @@ def prune_tree(
     """
     if method == "pessimistic":
         pessimistic_prune(tree)
-    else:
+    elif method == "reduced_error":
+        if X_val is None or y_val is None:
+            raise ValueError("X_val and y_val are required for reduced_error pruning")
         reduced_error_prune(tree, X_val, y_val)
+    else:
+        raise ValueError(f"Unknown pruning method: {method}")
 
 
 def reduced_error_prune(
@@ -199,6 +203,8 @@ def _pessimistic_prune_recursive(node: Any, z: float) -> float:
     leaf_error: float = _upper_confidence_error(node, z)
 
     # Prune if leaf error is less than or equal to subtree error
+    # Note: Quinlan suggests pruning if leaf_error <= subtree_error + standard_error
+    # But standard implementation often uses direct comparison
     if leaf_error <= subtree_error:
         node.is_leaf = True
         node.children = {}
@@ -233,16 +239,16 @@ def _upper_confidence_error(node: Any, z: float) -> float:
     Returns:
         Upper confidence bound for number of errors.
     """
-    n: int = node.samples
-    if n == 0:
+    n: float = node.samples
+    if n <= 0:
         return 0.0
 
     # Number of errors = samples - majority class count
     if node.class_distribution:
-        majority: int = max(node.class_distribution.values())
-        e: int = n - majority
+        majority: float = max(node.class_distribution.values())
+        e: float = n - majority
     else:
-        e: int = 0
+        e: float = 0.0
 
     f: float = e / n  # Observed error rate
 
@@ -311,16 +317,16 @@ def pessimistic_error_rate(node: Any, z: float = 0.6745) -> float:
     Returns:
         Pessimistic error rate in [0, 1].
     """
-    n: int = node.samples
-    if n == 0:
+    n: float = node.samples
+    if n <= 0:
         return 0.0
 
     # Errors = total - majority class count
     if node.class_distribution:
-        majority: int = max(node.class_distribution.values())
-        e: int = n - majority
+        majority: float = max(node.class_distribution.values())
+        e: float = n - majority
     else:
-        e: int = 0
+        e: float = 0.0
 
     # Add pessimistic correction
     return (e + 0.5) / n
@@ -339,15 +345,15 @@ def subtree_error(node: Any) -> float:
         Total pessimistic error for the subtree.
     """
     if node.is_leaf:
-        n: int = node.samples
-        if n == 0:
+        n: float = node.samples
+        if n <= 0:
             return 0.0
 
         if node.class_distribution:
-            majority: int = max(node.class_distribution.values())
-            e: int = n - majority
+            majority: float = max(node.class_distribution.values())
+            e: float = n - majority
         else:
-            e: int = 0
+            e: float = 0.0
 
         # Pessimistic correction
         return e + 0.5

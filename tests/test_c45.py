@@ -167,7 +167,10 @@ def test_best_threshold() -> None:
     t, gr = best_threshold(X, y, 0)
     
     assert t is not None
-    assert 2.0 < t < 3.0  # Threshold between class change
+    # C4.5 uses the largest value in the lower partition (v_i) as threshold
+    # Here, values are 1, 2 (no), 3, 4 (yes). Split is between 2 and 3.
+    # So threshold should be 2.0
+    assert t == 2.0
 
 
 def test_best_threshold_multiple_boundaries() -> None:

@@ -22,12 +22,11 @@ Dataset = List[Sample]
 Labels = List[Any]
 
 
-def entropy(y: Labels) -> float:
+def entropy(y: Labels, weights: Optional[List[float]] = None) -> float:
     """
     Calculate Shannon entropy of a label distribution.
 
-    Shannon entropy measures the uncertainty or impurity in a dataset.
-    Higher entropy indicates more mixed classes (harder to predict).
+    Supports weighted samples for C4.5 missing value handling.
 
     Mathematical Formula:
         H(S) = -Σᵢ p(cᵢ) × log₂(p(cᵢ))
@@ -35,36 +34,34 @@ def entropy(y: Labels) -> float:
     Where:
         - S is the set of samples
         - cᵢ is each unique class
-        - p(cᵢ) = |{x ∈ S : class(x) = cᵢ}| / |S|
-
-    Properties:
-        - H(S) = 0 when all samples belong to one class (pure node)
-        - H(S) = 1 for binary classification with 50/50 split (maximum uncertainty)
-        - H(S) = log₂(k) for k equally distributed classes
-
-    Reference:
-        Shannon, C.E. (1948). "A Mathematical Theory of Communication"
+        - p(cᵢ) = sum(weights for class cᵢ) / total_weight
 
     Args:
         y: List of class labels.
+        weights: Optional list of weights for each sample.
+                 If None, assumes all weights are 1.0.
 
     Returns:
         float: Entropy value in range [0, log₂(num_classes)].
                Returns 0.0 for empty input.
-
-    Examples:
-        >>> entropy(['yes', 'yes', 'yes'])  # Pure set
-        0.0
-        >>> entropy(['yes', 'no'])  # Binary balanced
-        1.0
-        >>> abs(entropy(['yes']*9 + ['no']*5) - 0.9403) < 0.001  # Classic [9+, 5-]
-        True
     """
     if not y:
         return 0.0
 
-    counts: Counter = Counter(y)
-    total: int = len(y)
+    if weights is None:
+        # Unweighted case (standard)
+        counts = Counter(y)
+        total = len(y)
+    else:
+        # Weighted case
+        counts = {}
+        total = 0.0
+        for label, w in zip(y, weights):
+            counts[label] = counts.get(label, 0.0) + w
+            total += w
+            
+        if total == 0:
+            return 0.0
 
     ent: float = 0.0
     for count in counts.values():
@@ -75,72 +72,64 @@ def entropy(y: Labels) -> float:
     return ent
 
 
-def split_info(X: Dataset, feature_idx: int, threshold: Optional[float] = None) -> float:
+def split_info(
+    X: Dataset, 
+    feature_idx: int, 
+    threshold: Optional[float] = None,
+    weights: Optional[List[float]] = None
+) -> float:
     """
     Calculate Split Information (Intrinsic Value) for a feature.
 
-    Split Information penalizes features with many distinct values,
-    preventing C4.5 from being biased toward high-cardinality features
-    like unique identifiers.
+    Split Information penalizes features with many distinct values.
+    Supports weighted samples.
 
     Mathematical Formula:
         SI(S, A) = -Σᵥ (|Sᵥ| / |S|) × log₂(|Sᵥ| / |S|)
 
-    Where:
-        - S is the dataset
-        - A is the attribute being split on
-        - Sᵥ is the subset where attribute A has value v
-
-    For continuous attributes with threshold t:
-        SI(S, A, t) = -(|S≤t|/|S|)×log₂(|S≤t|/|S|) - (|S>t|/|S|)×log₂(|S>t|/|S|)
-
-    Reference:
-        Quinlan, J.R. (1993). "C4.5: Programs for Machine Learning", Chapter 2
-
     Args:
-        X: Dataset as list of samples (tuples/lists of feature values).
+        X: Dataset as list of samples.
         feature_idx: Index of the feature to evaluate.
         threshold: Optional threshold for continuous features.
-                   If provided, performs binary split (≤ threshold, > threshold).
+        weights: Optional list of weights for each sample.
 
     Returns:
-        float: Split information value. Returns 0.0 if split produces
-               empty partitions (which would cause division by zero in GR).
-
-    Examples:
-        >>> X = [('a',), ('b',), ('c',), ('d',)]  # 4 unique values
-        >>> split_info(X, 0)  # log₂(4) = 2.0
-        2.0
-        >>> X = [('a',), ('a',), ('b',), ('b',)]  # 2 unique values, equal split
-        >>> split_info(X, 0)  # log₂(2) = 1.0
-        1.0
+        float: Split information value.
     """
+    if weights is None:
+        weights = [1.0] * len(X)
+        
+    total_weight = sum(weights)
+    if total_weight == 0:
+        return 0.0
+
     if threshold is not None:
         # Binary split for continuous attributes
-        left: int = sum(1 for s in X if s[feature_idx] is not None 
-                        and float(s[feature_idx]) <= threshold)
-        right: int = len(X) - left
-        total: int = len(X)
+        left_weight = 0.0
+        for i, s in enumerate(X):
+            if s[feature_idx] is not None and float(s[feature_idx]) <= threshold:
+                left_weight += weights[i]
+                
+        right_weight = total_weight - left_weight
 
-        if left == 0 or right == 0:
+        if left_weight == 0 or right_weight == 0:
             return 0.0
 
-        p_left: float = left / total
-        p_right: float = right / total
+        p_left = left_weight / total_weight
+        p_right = right_weight / total_weight
         return -(p_left * math.log2(p_left) + p_right * math.log2(p_right))
     else:
         # Multi-way split for categorical attributes
-        counts: Counter = Counter(sample[feature_idx] for sample in X 
-                                  if sample[feature_idx] is not None)
-        total: int = sum(counts.values())
-
-        if total == 0:
-            return 0.0
-
-        si: float = 0.0
+        counts = {}
+        for i, sample in enumerate(X):
+            val = sample[feature_idx]
+            if val is not None:
+                counts[val] = counts.get(val, 0.0) + weights[i]
+        
+        si = 0.0
         for count in counts.values():
             if count > 0:
-                p: float = count / total
+                p = count / total_weight
                 si -= p * math.log2(p)
 
         return si
@@ -150,137 +139,125 @@ def information_gain(
     X: Dataset,
     y: Labels,
     feature_idx: int,
-    threshold: Optional[float] = None
+    threshold: Optional[float] = None,
+    weights: Optional[List[float]] = None
 ) -> float:
     """
     Calculate Information Gain for splitting on a feature.
 
-    Information Gain measures the reduction in entropy achieved by
-    partitioning the dataset based on a feature. Higher gain indicates
-    the feature provides more information for classification.
-
-    Mathematical Formula:
-        IG(S, A) = H(S) - Σᵥ (|Sᵥ| / |S|) × H(Sᵥ)
-
-    Where:
-        - H(S) is the entropy of the parent node
-        - Sᵥ is the subset of samples where feature A has value v
-        - The sum is over all unique values v of feature A
-
-    For continuous attributes with threshold t:
-        IG(S, A, t) = H(S) - (|S≤t|/|S|)×H(S≤t) - (|S>t|/|S|)×H(S>t)
-
-    Reference:
-        Quinlan, J.R. (1986). "Induction of Decision Trees", Machine Learning 1:81-106
+    Supports weighted samples and C4.5 missing value penalty.
+    
+    Algorithm:
+    1. Filter to samples with KNOWN values for the feature.
+    2. Calculate Gain on this subset.
+    3. Multiply by F = (total weight of known) / (total weight of all).
 
     Args:
         X: Dataset as list of samples.
         y: Corresponding class labels.
         feature_idx: Index of the feature to split on.
         threshold: Optional threshold for continuous features.
+        weights: Optional list of weights for each sample.
 
     Returns:
-        float: Information gain value in range [0, H(S)].
-               Returns 0.0 if the split provides no information.
-
-    Examples:
-        >>> X = [('a',), ('a',), ('b',), ('b',)]
-        >>> y = ['yes', 'yes', 'no', 'no']
-        >>> information_gain(X, y, 0)  # Perfect split
-        1.0
+        float: Information gain value.
     """
-    parent_entropy: float = entropy(y)
+    if weights is None:
+        weights = [1.0] * len(y)
+
+    total_weight_all = sum(weights)
+    if total_weight_all == 0:
+        return 0.0
+
+    # 1. Filter to known values
+    known_X = []
+    known_y = []
+    known_weights = []
+    total_weight_known = 0.0
+
+    for i, s in enumerate(X):
+        if s[feature_idx] is not None:
+            known_X.append(s)
+            known_y.append(y[i])
+            known_weights.append(weights[i])
+            total_weight_known += weights[i]
+
+    if total_weight_known == 0:
+        return 0.0
+
+    # 2. Calculate Gain on known subset
+    parent_entropy = entropy(known_y, known_weights)
+    weighted_child_entropy = 0.0
 
     if threshold is not None:
         # Binary split for continuous feature
-        left_y: Labels = [y[i] for i, s in enumerate(X)
-                          if s[feature_idx] is not None
-                          and float(s[feature_idx]) <= threshold]
-        right_y: Labels = [y[i] for i, s in enumerate(X)
-                           if s[feature_idx] is not None
-                           and float(s[feature_idx]) > threshold]
+        left_y = []
+        left_weights = []
+        right_y = []
+        right_weights = []
+        
+        for i, s in enumerate(known_X):
+            val = float(s[feature_idx])
+            if val <= threshold:
+                left_y.append(known_y[i])
+                left_weights.append(known_weights[i])
+            else:
+                right_y.append(known_y[i])
+                right_weights.append(known_weights[i])
 
-        total: int = len(left_y) + len(right_y)
-        if total == 0:
-            return 0.0
-
-        weighted: float = (
-            (len(left_y) / total) * entropy(left_y) +
-            (len(right_y) / total) * entropy(right_y)
-        )
+        # Calculate weighted average of child entropies
+        for subset_y, subset_weights in [(left_y, left_weights), (right_y, right_weights)]:
+            subset_total = sum(subset_weights)
+            if subset_total > 0:
+                weighted_child_entropy += (subset_total / total_weight_known) * entropy(subset_y, subset_weights)
+                
     else:
         # Multi-way split for categorical feature
-        splits: Dict[Any, Labels] = {}
-        for i, sample in enumerate(X):
+        splits = {} # val -> (y_subset, weights_subset)
+        
+        for i, sample in enumerate(known_X):
             val = sample[feature_idx]
-            if val is not None:
-                if val not in splits:
-                    splits[val] = []
-                splits[val].append(y[i])
+            if val not in splits:
+                splits[val] = ([], [])
+            splits[val][0].append(known_y[i])
+            splits[val][1].append(known_weights[i])
 
-        total: int = sum(len(subset) for subset in splits.values())
-        if total == 0:
-            return 0.0
+        for subset_y, subset_weights in splits.values():
+            subset_total = sum(subset_weights)
+            if subset_total > 0:
+                weighted_child_entropy += (subset_total / total_weight_known) * entropy(subset_y, subset_weights)
 
-        weighted: float = sum(
-            (len(subset) / total) * entropy(subset)
-            for subset in splits.values()
-        )
-
-    return parent_entropy - weighted
+    gain_known = parent_entropy - weighted_child_entropy
+    
+    # 3. Apply Penalty F
+    F = total_weight_known / total_weight_all
+    return F * gain_known
 
 
 def gain_ratio(
     X: Dataset,
     y: Labels,
     feature_idx: int,
-    threshold: Optional[float] = None
+    threshold: Optional[float] = None,
+    weights: Optional[List[float]] = None
 ) -> float:
     """
     Calculate Gain Ratio for C4.5 splitting criterion.
 
-    Gain Ratio normalizes Information Gain by Split Information to
-    reduce bias toward features with many distinct values. This is
-    the primary splitting criterion in C4.5.
-
-    Mathematical Formula:
-        GR(S, A) = IG(S, A) / SI(S, A)
-
-    Where:
-        - IG(S, A) is the Information Gain
-        - SI(S, A) is the Split Information (Intrinsic Value)
-
-    Properties:
-        - GR(S, A) ≤ IG(S, A) always (since SI ≥ 1 for 2+ partitions)
-        - GR penalizes high-cardinality features (high SI → low GR)
-        - GR = 0 when SI = 0 (undefined, but handled as 0)
-
-    Edge Case:
-        When SI = 0 (all samples have same value), returns 0.0 to avoid
-        division by zero. This correctly indicates no splitting value.
-
-    Reference:
-        Quinlan, J.R. (1993). "C4.5: Programs for Machine Learning", Chapter 2
+    Supports weighted samples.
 
     Args:
         X: Dataset as list of samples.
         y: Corresponding class labels.
         feature_idx: Index of the feature to evaluate.
         threshold: Optional threshold for continuous features.
+        weights: Optional list of weights for each sample.
 
     Returns:
-        float: Gain ratio value. Returns 0.0 if Split Information is 0.
-
-    Examples:
-        >>> X = [('a', 'x'), ('b', 'x'), ('c', 'y'), ('d', 'y')]
-        >>> y = ['yes', 'yes', 'no', 'no']
-        >>> gr_high_card = gain_ratio(X, y, 0)  # 4 unique values
-        >>> gr_low_card = gain_ratio(X, y, 1)   # 2 unique values
-        >>> gr_low_card > gr_high_card  # Low cardinality preferred
-        True
+        float: Gain ratio value.
     """
-    ig: float = information_gain(X, y, feature_idx, threshold)
-    si: float = split_info(X, feature_idx, threshold)
+    ig = information_gain(X, y, feature_idx, threshold, weights)
+    si = split_info(X, feature_idx, threshold, weights)
 
     if si == 0:
         return 0.0
@@ -291,22 +268,8 @@ def gain_ratio(
 def is_continuous(X: Dataset, feature_idx: int) -> bool:
     """
     Detect whether a feature contains continuous (numeric) values.
-
-    Examines sample values to determine if they can be parsed as floats.
-    Missing values (None) are skipped during detection.
-
-    Args:
-        X: Dataset as list of samples.
-        feature_idx: Index of the feature to check.
-
-    Returns:
-        bool: True if feature values are numeric, False if categorical.
-
-    Note:
-        Only checks first 10 non-None samples for efficiency.
-        String representations of numbers (e.g., "3.14") are treated as continuous.
     """
-    checked: int = 0
+    checked = 0
     for sample in X:
         if checked >= 10:
             break
@@ -324,87 +287,72 @@ def is_continuous(X: Dataset, feature_idx: int) -> bool:
 def best_threshold(
     X: Dataset,
     y: Labels,
-    feature_idx: int
+    feature_idx: int,
+    weights: Optional[List[float]] = None
 ) -> Tuple[Optional[float], float]:
     """
     Find optimal split threshold for a continuous feature.
 
-    Uses Quinlan's midpoint method: candidate thresholds are placed at
-    midpoints between consecutive sorted values where the class label
-    changes. This ensures the threshold lies between actual data points.
-
-    Algorithm:
-        1. Collect (value, label) pairs, excluding missing values
-        2. Sort by value
-        3. Find midpoints between consecutive samples with different labels
-        4. Evaluate Gain Ratio for each candidate threshold
-        5. Return threshold with highest Gain Ratio
-
-    Optimization:
-        The algorithm prioritizes class boundaries (points where label changes)
-        as candidates, as these are most likely to produce good splits.
-        Falls back to all midpoints if no class changes exist.
-
-    Reference:
-        Quinlan, J.R. (1993). "C4.5: Programs for Machine Learning", Chapter 2.4
+    Uses Quinlan's C4.5 method:
+    1. Sort instances by attribute value.
+    2. Only test split points where class label changes.
+    3. Threshold is set to v_i (largest value in lower partition), NOT midpoint.
 
     Args:
         X: Dataset as list of samples.
         y: Corresponding class labels.
         feature_idx: Index of the continuous feature.
+        weights: Optional list of weights for each sample.
 
     Returns:
         Tuple[Optional[float], float]: (best_threshold, best_gain_ratio)
-            Returns (None, 0.0) if no valid threshold found.
-
-    Examples:
-        >>> X = [(1.0,), (2.0,), (3.0,), (4.0,)]
-        >>> y = ['no', 'no', 'yes', 'yes']
-        >>> t, gr = best_threshold(X, y, 0)
-        >>> 2.0 < t < 3.0  # Threshold at class boundary
-        True
     """
-    # Collect (value, label) pairs, skip missing values
-    pairs: List[Tuple[float, Any]] = []
+    if weights is None:
+        weights = [1.0] * len(y)
+
+    # Collect (value, label, weight) triplets, skip missing values
+    triplets = []
     for i in range(len(X)):
         val = X[i][feature_idx]
         if val is not None:
             try:
-                pairs.append((float(val), y[i]))
+                triplets.append((float(val), y[i], weights[i]))
             except (ValueError, TypeError):
                 continue
 
-    if len(pairs) < 2:
+    if len(triplets) < 2:
         return None, 0.0
 
     # Sort by value
-    pairs.sort(key=lambda x: x[0])
+    triplets.sort(key=lambda x: x[0])
 
-    # Find candidate thresholds at class boundaries
-    candidates: List[float] = []
-    for i in range(len(pairs) - 1):
-        if pairs[i][1] != pairs[i + 1][1]:
+    # Find candidate thresholds (where class changes)
+    candidates = []
+    
+    for i in range(len(triplets) - 1):
+        if triplets[i][1] != triplets[i + 1][1]:
             # Class label changes - good split candidate
-            midpoint: float = (pairs[i][0] + pairs[i + 1][0]) / 2
-            candidates.append(midpoint)
+            # C4.5 uses the value itself (v_i) as the threshold
+            threshold = triplets[i][0]
+            candidates.append(threshold)
 
-    # If no class boundaries, try all unique midpoints
-    if not candidates:
-        values: List[float] = sorted(set(p[0] for p in pairs))
-        candidates = [
-            (values[i] + values[i + 1]) / 2
-            for i in range(len(values) - 1)
-        ]
+    # Remove duplicates
+    candidates = sorted(list(set(candidates)))
 
     if not candidates:
-        return None, 0.0
+        # Fallback
+        values = sorted(list(set(t[0] for t in triplets)))
+        if len(values) > 1:
+            candidates = values[:-1]
+        else:
+            return None, 0.0
 
     # Find threshold with best Gain Ratio
-    best_t: Optional[float] = None
-    best_gr: float = -1.0
+    best_t = None
+    best_gr = -1.0
 
     for t in candidates:
-        gr: float = gain_ratio(X, y, feature_idx, threshold=t)
+        gr = gain_ratio(X, y, feature_idx, threshold=t, weights=weights)
         if gr > best_gr:
             best_gr = gr
             best_t = t
@@ -414,56 +362,32 @@ def best_threshold(
 
 def handle_missing(
     X: Dataset,
-    feature_idx: int
+    feature_idx: int,
+    weights: Optional[List[float]] = None
 ) -> Optional[Dict[Any, float]]:
     """
     Calculate value distribution for handling missing values.
-
-    C4.5 handles missing values by distributing samples with unknown
-    values across all branches proportionally to the distribution of
-    known values. This function computes the distribution weights.
-
-    Algorithm:
-        1. Count occurrences of each known value
-        2. Compute probability: P(v) = count(v) / total_known
-        3. Return distribution dictionary
-
-    Usage:
-        When a sample has a missing value for the split feature,
-        it is sent down ALL branches with fractional weight equal
-        to the proportion of training samples with that value.
-
-    Reference:
-        Quinlan, J.R. (1993). "C4.5: Programs for Machine Learning", Chapter 2.5
-
-    Args:
-        X: Dataset as list of samples.
-        feature_idx: Index of the feature with missing values.
-
-    Returns:
-        Optional[Dict[Any, float]]: Mapping from value to probability.
-            Returns None if no known values exist.
-
-    Examples:
-        >>> X = [('a',), ('a',), ('b',), (None,)]
-        >>> dist = handle_missing(X, 0)
-        >>> dist['a']  # 2/3 probability
-        0.6666666666666666
-        >>> dist['b']  # 1/3 probability
-        0.3333333333333333
+    
+    Returns weighted probability distribution of known values.
     """
-    known: Counter = Counter()
-    for sample in X:
+    if weights is None:
+        weights = [1.0] * len(X)
+        
+    known_counts = {}
+    total_known_weight = 0.0
+    
+    for i, sample in enumerate(X):
         val = sample[feature_idx]
         if val is not None:
-            known[val] += 1
+            w = weights[i]
+            known_counts[val] = known_counts.get(val, 0.0) + w
+            total_known_weight += w
 
-    total_known: int = sum(known.values())
-    if total_known == 0:
+    if total_known_weight == 0:
         return None
 
-    distribution: Dict[Any, float] = {
-        v: c / total_known for v, c in known.items()
+    distribution = {
+        v: c / total_known_weight for v, c in known_counts.items()
     }
 
     return distribution

@@ -30,9 +30,9 @@ class Node:
         right (Optional[Node]): Right child (> threshold) for continuous splits.
         label (Optional[Any]): Predicted class label.
         is_leaf (bool): True if this is a terminal node.
-        samples (int): Number of training samples that reached this node.
+        samples (float): Weighted number of training samples that reached this node.
         depth (int): Depth of this node in the tree.
-        class_distribution (Dict[Any, int]): Count of each class at this node.
+        class_distribution (Dict[Any, float]): Weighted count of each class at this node.
             Used for pruning decisions and handling missing values.
 
     Reference:
@@ -77,9 +77,9 @@ class Node:
         self.is_leaf: bool = is_leaf
 
         # Statistics for pruning and missing values
-        self.samples: int = 0
+        self.samples: float = 0.0
         self.depth: int = 0
-        self.class_distribution: Dict[Any, int] = {}
+        self.class_distribution: Dict[Any, float] = {}
 
     def predict_one(
         self,
