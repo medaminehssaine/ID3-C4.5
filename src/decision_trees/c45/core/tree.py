@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from ...base import DecisionTreeBase
 from .gain_ratio import (
     gain_ratio, information_gain, split_info,
     is_continuous, best_threshold, entropy
@@ -24,7 +25,7 @@ Dataset = List[Sample]
 Labels = List[Any]
 
 
-class C45Classifier:
+class C45Classifier(DecisionTreeBase):
     """
     C4.5 Decision Tree Classifier.
 
@@ -39,6 +40,10 @@ class C45Classifier:
     3. **Missing Values**: Handles missing data by distributing samples.
     
     4. **Pruning**: Supports post-pruning via the pruning module.
+
+    Inherits from DecisionTreeBase, providing:
+        - Shared `fit`, `predict`, `predict_one` methods
+        - `_calculate_entropy` static method
 
     Algorithm:
         1. If stopping condition met → create leaf
@@ -87,55 +92,27 @@ class C45Classifier:
             min_gain_ratio: Minimum Gain Ratio required to make a split.
                            Helps prevent splits that provide little value.
         """
-        self.max_depth: Optional[int] = max_depth
-        self.min_samples_split: int = min_samples_split
+        super().__init__(max_depth=max_depth, min_samples_split=min_samples_split)
         self.min_gain_ratio: float = min_gain_ratio
-
-        self.root: Optional[Node] = None
-        self.feature_names: Optional[List[str]] = None
-        self.classes_: Optional[List[Any]] = None
-        self.n_features_: int = 0
         self.feature_types_: List[str] = []
 
-    def fit(
-        self,
-        X: Dataset,
-        y: Labels,
-        feature_names: Optional[List[str]] = None
-    ) -> 'C45Classifier':
+    def _prepare_fit(self, X: Dataset, y: Labels) -> None:
         """
-        Build decision tree from training data.
+        Detect feature types before tree building.
 
-        Automatically detects whether each feature is continuous or
-        categorical based on whether values can be parsed as floats.
+        C4.5 automatically determines whether each feature is continuous
+        or categorical based on whether values can be parsed as floats.
 
         Args:
-            X: Training samples as list of tuples/lists.
-            y: Target class labels.
-            feature_names: Optional names for features.
-
-        Returns:
-            self: Fitted classifier.
+            X: Training samples.
+            y: Target labels (unused, required by interface).
         """
-        self.n_features_ = len(X[0]) if X else 0
-        self.feature_names = feature_names or [
-            f"f{i}" for i in range(self.n_features_)
-        ]
-        self.classes_ = list(set(y))
-
-        # Detect feature types
         self.feature_types_ = []
         for i in range(self.n_features_):
             if is_continuous(X, i):
                 self.feature_types_.append('continuous')
             else:
                 self.feature_types_.append('categorical')
-
-        # Available features (can be reused for continuous in C4.5)
-        available: Set[int] = set(range(self.n_features_))
-
-        self.root = self._build_tree(X, y, available, depth=0)
-        return self
 
     def _build_tree(
         self,
@@ -281,40 +258,6 @@ class C45Classifier:
 
         return node
 
-    def predict(self, X: Dataset) -> Labels:
-        """
-        Predict class labels for samples.
-
-        Args:
-            X: Samples to predict.
-
-        Returns:
-            List of predicted class labels.
-
-        Raises:
-            ValueError: If tree is not fitted.
-        """
-        if self.root is None:
-            raise ValueError("Tree not fitted")
-        return [self.root.predict_one(sample) for sample in X]
-
-    def predict_one(self, sample: Sample) -> Any:
-        """
-        Predict class for a single sample.
-
-        Args:
-            sample: Single sample as tuple.
-
-        Returns:
-            Predicted class label.
-
-        Raises:
-            ValueError: If tree is not fitted.
-        """
-        if self.root is None:
-            raise ValueError("Tree not fitted")
-        return self.root.predict_one(sample)
-
     def get_depth(self) -> int:
         """
         Get maximum depth of the tree.
@@ -371,8 +314,3 @@ class C45Classifier:
 
         return count
 
-    def __repr__(self) -> str:
-        """Return string representation."""
-        if self.root is None:
-            return "C45Classifier(not fitted)"
-        return f"C45Classifier(depth={self.get_depth()}, leaves={self.get_n_leaves()})"

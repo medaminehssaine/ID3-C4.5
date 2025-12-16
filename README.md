@@ -1,166 +1,240 @@
-# 🌳 ID3 & C4.5 Decision Trees
-
-> Professional implementations of Quinlan's classic decision tree algorithms for the KDD course.
-> Built from scratch with strict adherence to the original research papers.
+# 🌳 Decision Trees from Scratch
 
 <div align="center">
 
-| Algorithm | Year | Criterion | Continuous | Missing Values | Pruning |
-|:---------:|:----:|:---------:|:----------:|:--------------:|:-------:|
-| **ID3** | 1986 | Info Gain | ✗ | ✗ | ✗ |
-| **C4.5** | 1993 | Gain Ratio | ✓ | ✓ | ✓ |
+**A professional, research-grade implementation of ID3 and C4.5 Decision Tree algorithms**
+
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests: 44/44](https://img.shields.io/badge/tests-44%2F44-brightgreen.svg)]()
+
+*Built from scratch following Quinlan's original research papers*
 
 </div>
 
 ---
 
-## 📁 Project Structure
+## 📚 Overview
 
-```
-.
-├── src/decision_trees/      # unified package
-│   ├── id3/                 # ID3 algorithm
-│   │   ├── core/            # entropy, node, tree
-│   │   ├── data/            # sample datasets
-│   │   ├── utils/           # validation, visualization
-│   │   └── comparison/      # sklearn benchmarks
-│   └── c45/                 # C4.5 algorithm
-│       ├── core/            # gain_ratio, pruning
-│       ├── data/            # continuous datasets
-│       └── utils/           # visualization
-├── tests/                   # unit tests (40+ tests)
-├── examples/                # demo scripts
-├── outputs/                 # generated .dot files
-├── REPORT_STRUCTURE.md      # theory-to-code mapping
-└── pyproject.toml           # pip installable
-```
+This package provides **production-ready** implementations of two foundational decision tree algorithms:
 
----
+| Algorithm | Year | Key Feature | Use Case |
+|-----------|------|-------------|----------|
+| **ID3** | 1986 | Information Gain | Categorical features |
+| **C4.5** | 1993 | Gain Ratio + Continuous | Mixed feature types |
 
-## 🔧 Installation
+### Why This Package?
 
-```bash
-# Clone and navigate
-cd "ID3 & C4.5"
-
-# Install as editable package
-pip install -e .
-
-# Optional: install test and comparison dependencies
-pip install -e ".[dev,compare]"
-```
+- ✅ **No sklearn dependency** - Pure Python + NumPy implementation
+- ✅ **Academic accuracy** - Follows Quinlan's papers exactly
+- ✅ **Production features** - Serialization, tuning, metrics
+- ✅ **Fully documented** - Mathematical formulas in docstrings
+- ✅ **Type-hinted** - Full typing for IDE support
 
 ---
 
 ## 🚀 Quick Start
 
 ```python
-# === ID3: categorical features ===
-from decision_trees.id3 import ID3Classifier
-from decision_trees.id3.data import load_play_tennis
+from decision_trees import ID3Classifier, C45Classifier
 
-X, y, names = load_play_tennis()
+# Categorical data → ID3
+X = [('sunny', 'hot'), ('rain', 'cool'), ('overcast', 'mild')]
+y = ['no', 'yes', 'yes']
+
 clf = ID3Classifier()
-clf.fit(X, y, names)
-print(clf.predict_one(("sunny", "cool", "normal", "weak")))
-# → "yes"
+clf.fit(X, y, feature_names=['weather', 'temp'])
+print(clf.predict([('sunny', 'cool')]))  # ['yes']
 
+# Mixed/continuous data → C4.5
+X = [(25.0, 'sunny'), (18.0, 'rain'), (22.0, 'overcast')]
+y = ['no', 'yes', 'yes']
 
-# === C4.5: continuous + categorical ===
-from decision_trees.c45 import C45Classifier
-from decision_trees.c45.data import load_iris
-
-X, y, names = load_iris()
 clf = C45Classifier()
-clf.fit(X, y, names)
-print(clf.feature_types_)  # ['continuous', 'continuous', ...]
-# Auto-detects continuous features and finds thresholds
+clf.fit(X, y, feature_names=['temperature', 'weather'])
+print(clf.predict([(20.0, 'rain')]))  # ['yes']
 ```
 
 ---
 
-## 📐 Mathematical Foundations
+## 📖 Mathematical Foundation
 
-### Entropy (Shannon Entropy)
+### Entropy (Information Content)
 
-The foundation of both ID3 and C4.5. Measures uncertainty in a dataset.
+The entropy $H(S)$ measures uncertainty in a dataset:
 
-```
-H(S) = -Σᵢ p(cᵢ) × log₂(p(cᵢ))
-```
+$$H(S) = -\sum_{c \in C} p(c) \cdot \log_2 p(c)$$
 
-**Properties:**
-- `H(S) = 0` for pure sets (all same class)
-- `H(S) = 1` for balanced binary (50/50 split)
-- `H(S) = log₂(k)` for k equally distributed classes
+where $p(c)$ is the proportion of class $c$ in set $S$.
 
----
+| Scenario | Entropy | Interpretation |
+|----------|---------|----------------|
+| Pure (all same class) | 0.0 | No uncertainty |
+| Balanced binary | 1.0 | Maximum uncertainty |
+| [9+, 5-] (Quinlan's example) | 0.940 | High uncertainty |
 
-### Information Gain (ID3 Criterion)
+### Information Gain (ID3)
 
-Measures reduction in entropy after splitting.
+ID3 selects the feature with highest Information Gain:
 
-```
-IG(S, A) = H(S) - Σᵥ (|Sᵥ|/|S|) × H(Sᵥ)
-```
+$$IG(S, A) = H(S) - \sum_{v \in Values(A)} \frac{|S_v|}{|S|} \cdot H(S_v)$$
 
-**Problem:** Biased toward high-cardinality features!
+**Limitation**: Biased toward high-cardinality features (e.g., unique IDs).
 
-*Example:* A unique ID column always has maximum IG but provides no generalization.
+### Gain Ratio (C4.5)
 
----
+C4.5 normalizes IG by Split Information to fix the bias:
 
-### Gain Ratio (C4.5 Solution)
+$$GR(S, A) = \frac{IG(S, A)}{SplitInfo(S, A)}$$
 
-Normalizes Information Gain to reduce bias.
+where:
 
-```
-GR(S, A) = IG(S, A) / SI(S, A)
-
-SI(S, A) = -Σᵥ (|Sᵥ|/|S|) × log₂(|Sᵥ|/|S|)
-```
-
-**Why it works:**
-- Split Information (SI) is high for features with many values
-- Dividing IG by SI penalizes high-cardinality features
-- `GR ≤ IG` always holds (SI ≥ 1 for 2+ partitions)
-
-**Mathematical Proof:**
-```
-SI(S,A) = -Σᵥ pᵥ × log₂(pᵥ)  where pᵥ = |Sᵥ|/|S|
-
-For n equally sized partitions: SI = log₂(n) ≥ 1 when n ≥ 2
-Therefore: GR = IG/SI ≤ IG
-```
+$$SplitInfo(S, A) = -\sum_{v \in Values(A)} \frac{|S_v|}{|S|} \cdot \log_2 \frac{|S_v|}{|S|}$$
 
 ---
 
-### Continuous Attribute Handling
+## 🛠️ Features
 
-C4.5 finds optimal thresholds for numeric features using binary splits.
+### Core Classifiers
 
-**Algorithm:**
-1. Sort values
-2. Find midpoints where class changes
-3. Evaluate GR for each candidate threshold
-4. Choose threshold with maximum GR
+```python
+from decision_trees import ID3Classifier, C45Classifier
 
-**Key difference from ID3:** Continuous features can be reused in subtrees!
+# ID3 - Categorical only
+id3 = ID3Classifier(
+    max_depth=5,           # Limit tree depth
+    min_samples_split=2    # Min samples to split
+)
+
+# C4.5 - Handles everything
+c45 = C45Classifier(
+    max_depth=None,        # Unlimited depth
+    min_samples_split=2,
+    min_gain_ratio=0.01    # Prevents trivial splits
+)
+```
+
+### Hyperparameter Tuning
+
+```python
+from decision_trees import GridSearchCV, ID3Classifier
+
+param_grid = {
+    'max_depth': [None, 3, 5, 7, 10],
+    'min_samples_split': [2, 5, 10, 20]
+}
+
+search = GridSearchCV(ID3Classifier, param_grid, cv=5, verbose=1)
+search.fit(X, y, feature_names)
+
+print(f"Best params: {search.best_params_}")
+print(f"Best score: {search.best_score_:.4f}")
+
+# Use best model
+predictions = search.predict(X_test)
+```
+
+### Evaluation Metrics
+
+```python
+from decision_trees import (
+    accuracy_score, precision_score, recall_score, f1_score,
+    confusion_matrix, classification_report
+)
+
+y_pred = clf.predict(X_test)
+
+print(f"Accuracy: {accuracy_score(y_test, y_pred):.4f}")
+print(f"F1 (macro): {f1_score(y_test, y_pred, average='macro'):.4f}")
+print()
+print(classification_report(y_test, y_pred))
+```
+
+### Model Serialization
+
+```python
+from decision_trees import save_model, load_model, model_summary
+
+# Save trained model
+save_model(clf, 'my_tree.json')
+
+# Load for inference
+loaded = load_model('my_tree.json')
+predictions = loaded.predict(X_new)
+
+# Model summary
+print(model_summary(clf))
+```
+
+### Feature Importance
+
+```python
+from decision_trees import FeatureImportance
+
+importance = FeatureImportance()
+importance.compute(clf, feature_names)
+
+# Ranked list
+for name, score in importance.to_ranked_list():
+    print(f"{name}: {score:.3f}")
+```
+
+### Tree Visualization
+
+```python
+from decision_trees.id3.utils.visualization import print_tree, export_graphviz
+
+# Console output
+print_tree(clf)
+
+# Graphviz DOT
+export_graphviz(clf, 'tree.dot')
+# Then: dot -Tpng tree.dot -o tree.png
+```
 
 ---
 
-### Pessimistic Error Pruning
-
-C4.5's default pruning method (no validation set required).
+## 📁 Project Structure
 
 ```
-Pessimistic Error = (errors + 0.5) / N
+src/decision_trees/
+├── __init__.py          # Package exports
+├── base.py              # DecisionTreeBase abstract class
+├── optimized.py         # NumPy-vectorized computations
+├── metrics.py           # Evaluation metrics
+├── tuning.py            # GridSearchCV, RandomizedSearchCV
+├── serialization.py     # Save/load models
+│
+├── id3/                 # ID3 Implementation
+│   ├── core/
+│   │   ├── tree.py      # ID3Classifier
+│   │   ├── node.py      # Node structure
+│   │   └── entropy.py   # Entropy calculations
+│   ├── data/            # Sample datasets
+│   └── utils/           # Visualization
+│
+└── c45/                 # C4.5 Implementation
+    ├── core/
+    │   ├── tree.py      # C45Classifier
+    │   ├── node.py      # Node (+ threshold)
+    │   ├── gain_ratio.py # Gain Ratio, thresholds
+    │   └── pruning.py   # REP, PEP pruning
+    ├── data/
+    └── utils/
 ```
 
-Uses Wilson score interval for tighter bounds:
-```
-UCB = (f + z²/2n + z×√(f(1-f)/n + z²/4n²)) / (1 + z²/n)
-```
+---
+
+## 📊 Algorithm Comparison
+
+| Feature | ID3 | C4.5 |
+|---------|-----|------|
+| Splitting criterion | Information Gain | Gain Ratio |
+| Continuous features | ❌ | ✅ Binary threshold |
+| Missing values | ❌ | ✅ Proportional distribution |
+| Feature reuse | ❌ Once per path | ✅ Continuous can repeat |
+| Pruning | ❌ | ✅ REP, Pessimistic |
+| Bias | High cardinality | Corrected |
 
 ---
 
@@ -168,90 +242,31 @@ UCB = (f + z²/2n + z×√(f(1-f)/n + z²/4n²)) / (1 + z²/n)
 
 ```bash
 # Run all tests
-python -m pytest tests/ -v
-
-# Or run individually
 python tests/test_id3.py   # 21 tests
 python tests/test_c45.py   # 23 tests
+
+# Run demos
+python examples/demo_id3.py
+python examples/demo_c45.py
 ```
-
-### Key Test Cases
-
-| Test | Formula Verified |
-|------|------------------|
-| `test_entropy_classic` | H([9+, 5-]) ≈ 0.9403 |
-| `test_gain_ratio_less_than_ig` | GR ≤ IG always |
-| `test_best_threshold` | Optimal threshold at class boundary |
-
----
-
-## 🎬 Demos
-
-Beautiful terminal demos with colors, progress bars, and educational explanations.
-
-```bash
-python examples/demo_id3.py   # entropy, training, prediction, CV
-python examples/demo_c45.py   # gain ratio, thresholds, pruning
-```
-
-**Demo highlights:**
-- 📊 Visual entropy/gain calculations
-- 🌳 Tree visualization in console
-- 📈 Accuracy bars and metrics
-- 🔄 ID3 vs C4.5 comparison
 
 ---
 
 ## 📚 References
 
-1. **Quinlan, J.R. (1986).** *"Induction of Decision Trees"*, Machine Learning 1:81-106
-   - Original ID3 algorithm
-
-2. **Quinlan, J.R. (1993).** *"C4.5: Programs for Machine Learning"*, Morgan Kaufmann
-   - Gain Ratio, continuous attributes, pruning
-
-3. **Shannon, C.E. (1948).** *"A Mathematical Theory of Communication"*
-   - Foundation of entropy concept
+1. **Quinlan, J.R. (1986)**. "Induction of Decision Trees", *Machine Learning* 1:81-106
+2. **Quinlan, J.R. (1993)**. "C4.5: Programs for Machine Learning", Morgan Kaufmann
+3. **Shannon, C.E. (1948)**. "A Mathematical Theory of Communication"
+4. **Breiman, L. et al. (1984)**. "Classification and Regression Trees"
 
 ---
 
-## 📊 Sample Output
+## 📄 License
 
-**ID3 Tree (Play Tennis):**
-```
-[outlook?]
-├── sunny [humidity?]
-│   ├── high → [no]
-│   └── normal → [yes]
-├── overcast → [yes]
-└── rain [wind?]
-    ├── weak → [yes]
-    └── strong → [no]
-```
-
-**C4.5 Tree (Iris):**
-```
-[petal_length <= 2.50?]
-    yes: → [setosa]
-    no:  [petal_width <= 1.65?]
-        yes: → [versicolor]
-        no:  → [virginica]
-```
-
----
-
-## 👥 Team
-
-KDD Course Project — ID3 & C4.5 Decision Trees
-
-| Name | Role |
-|------|------|
-| Mohammed Amine Hssaine | Implementation |
-| Ouissam Benalla | Implementation |
-| Mohamed Taha El Younsi | Implementation |
+MIT License - See [LICENSE](LICENSE) for details.
 
 ---
 
 <div align="center">
-<sub>Built with ❤️ for learning machine learning fundamentals</sub>
+<i>Built with ❤️ for the ML research community</i>
 </div>

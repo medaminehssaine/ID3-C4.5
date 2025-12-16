@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any, Dict, List, Optional, Set, Tuple
 
+from ...base import DecisionTreeBase
 from .entropy import entropy, information_gain
 from .node import Node
 
@@ -21,13 +22,17 @@ Dataset = List[Sample]
 Labels = List[Any]
 
 
-class ID3Classifier:
+class ID3Classifier(DecisionTreeBase):
     """
     ID3 Decision Tree Classifier.
 
     Implements the classic ID3 algorithm by Quinlan (1986) using
     Information Gain to select splitting features. Best suited for
     categorical/discrete features.
+
+    Inherits from DecisionTreeBase, providing:
+        - Shared `fit`, `predict`, `predict_one` methods
+        - `_calculate_entropy` static method
 
     Algorithm:
         1. If all samples belong to same class → create leaf
@@ -68,48 +73,7 @@ class ID3Classifier:
             max_depth: Maximum tree depth. None means unlimited.
             min_samples_split: Minimum samples needed to attempt a split.
         """
-        self.max_depth: Optional[int] = max_depth
-        self.min_samples_split: int = min_samples_split
-        
-        self.root: Optional[Node] = None
-        self.feature_names: Optional[List[str]] = None
-        self.classes_: Optional[List[Any]] = None
-        self.n_features_: int = 0
-
-    def fit(
-        self,
-        X: Dataset,
-        y: Labels,
-        feature_names: Optional[List[str]] = None
-    ) -> 'ID3Classifier':
-        """
-        Build decision tree from training data.
-
-        Args:
-            X: Training samples as list of tuples/lists.
-            y: Target class labels.
-            feature_names: Optional names for features (for visualization).
-
-        Returns:
-            self: Fitted classifier.
-
-        Raises:
-            ValueError: If X and y have different lengths.
-        """
-        if len(X) != len(y):
-            raise ValueError("X and y must have the same length")
-
-        self.n_features_ = len(X[0]) if X else 0
-        self.feature_names = feature_names or [
-            f"f{i}" for i in range(self.n_features_)
-        ]
-        self.classes_ = list(set(y))
-
-        # Available features for splitting
-        available: Set[int] = set(range(self.n_features_))
-
-        self.root = self._build_tree(X, y, available, depth=0)
-        return self
+        super().__init__(max_depth=max_depth, min_samples_split=min_samples_split)
 
     def _build_tree(
         self,
@@ -198,41 +162,6 @@ class ID3Classifier:
 
         return node
 
-    def predict(self, X: Dataset) -> Labels:
-        """
-        Predict class labels for samples.
-
-        Args:
-            X: Samples to predict.
-
-        Returns:
-            List of predicted class labels.
-
-        Raises:
-            ValueError: If tree is not fitted.
-        """
-        if self.root is None:
-            raise ValueError("Tree not fitted yet, call fit() first")
-
-        return [self.root.predict_one(sample) for sample in X]
-
-    def predict_one(self, sample: Sample) -> Any:
-        """
-        Predict class for a single sample.
-
-        Args:
-            sample: Single sample as tuple.
-
-        Returns:
-            Predicted class label.
-
-        Raises:
-            ValueError: If tree is not fitted.
-        """
-        if self.root is None:
-            raise ValueError("Tree not fitted yet")
-        return self.root.predict_one(sample)
-
     def get_depth(self) -> int:
         """
         Get maximum depth of the tree.
@@ -269,8 +198,3 @@ class ID3Classifier:
             return 1
         return sum(self._count_leaves(child) for child in node.children.values())
 
-    def __repr__(self) -> str:
-        """Return string representation."""
-        if self.root is None:
-            return "ID3Classifier(not fitted)"
-        return f"ID3Classifier(depth={self.get_depth()}, leaves={self.get_n_leaves()})"
