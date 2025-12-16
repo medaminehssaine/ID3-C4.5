@@ -26,31 +26,8 @@ class DecisionTreeBase(ABC):
     """
     Abstract Base Class for Decision Tree Classifiers.
 
-    Provides the common interface and shared functionality for decision tree
-    algorithms including ID3 and C4.5. Subclasses must implement the
-    algorithm-specific `_build_tree` method.
-
-    Shared Functionality:
-        - `fit`: Train the decision tree
-        - `predict`: Predict class labels for multiple samples
-        - `predict_one`: Predict class for a single sample
-        - `get_depth`: Get maximum tree depth
-        - `get_n_leaves`: Count leaf nodes
-        - `_calculate_entropy`: Shannon entropy calculation
-
-    Abstract Methods (must be implemented by subclasses):
-        - `_build_tree`: Algorithm-specific tree construction
-
-    Attributes:
-        max_depth (Optional[int]): Maximum depth of the tree (None = unlimited).
-        min_samples_split (int): Minimum samples required to attempt a split.
-        root: Root node of the fitted tree.
-        feature_names (List[str]): Names of the features.
-        classes_ (List[Any]): Unique class labels.
-        n_features_ (int): Number of features.
-
-    Reference:
-        Shannon, C.E. (1948). "A Mathematical Theory of Communication"
+    Provides common functionality for ID3 and C4.5 algorithms.
+    Subclasses must implement `_build_tree`.
     """
 
     def __init__(
@@ -209,40 +186,11 @@ class DecisionTreeBase(ABC):
         """
         Calculate Shannon entropy of a label distribution.
 
-        Shannon entropy measures the uncertainty or impurity in a dataset.
-        Higher entropy indicates more mixed classes (harder to predict).
-
-        Mathematical Formula:
-            H(S) = -Σᵢ p(cᵢ) × log₂(p(cᵢ))
-
-        Where:
-            - S is the set of samples
-            - cᵢ is each unique class
-            - p(cᵢ) = count(cᵢ) / |S| is the proportion of class cᵢ
-
-        Properties:
-            - H(S) = 0 when all samples belong to one class (pure node)
-            - H(S) = 1 for binary classification with 50/50 split
-            - H(S) = log₂(k) for k equally distributed classes
-
-        Convention:
-            0 × log₂(0) is treated as 0 (limit as p→0⁺ of p×log₂(p) = 0)
-
-        Reference:
-            Shannon, C.E. (1948). "A Mathematical Theory of Communication"
-
         Args:
-            y: List of class labels. Can be any hashable type.
+            y: List of class labels.
 
         Returns:
-            float: Entropy value in range [0, log₂(num_classes)].
-                   Returns 0.0 for empty input.
-
-        Examples:
-            >>> DecisionTreeBase._calculate_entropy(['yes']*4)  # Pure
-            0.0
-            >>> DecisionTreeBase._calculate_entropy(['yes', 'no'])  # Balanced
-            1.0
+            float: Entropy value.
         """
         if not y:
             return 0.0

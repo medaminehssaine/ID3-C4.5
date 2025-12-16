@@ -26,39 +26,7 @@ class ID3Classifier(DecisionTreeBase):
     """
     ID3 Decision Tree Classifier.
 
-    Implements the classic ID3 algorithm by Quinlan (1986) using
-    Information Gain to select splitting features. Best suited for
-    categorical/discrete features.
-
-    Inherits from DecisionTreeBase, providing:
-        - Shared `fit`, `predict`, `predict_one` methods
-        - `_calculate_entropy` static method
-
-    Algorithm:
-        1. If all samples belong to same class → create leaf
-        2. If no features remaining → create leaf with majority class
-        3. Select feature with highest Information Gain
-        4. Create internal node splitting on that feature
-        5. Recursively build subtrees for each feature value
-        6. Remove used feature from available set (no reuse in ID3)
-
-    Attributes:
-        max_depth: Maximum depth of the tree (None = unlimited).
-        min_samples_split: Minimum samples required to split a node.
-        root: Root node of the fitted tree.
-        feature_names: Names of the features.
-        classes_: Unique class labels.
-        n_features_: Number of features.
-
-    Reference:
-        Quinlan, J.R. (1986). "Induction of Decision Trees",
-        Machine Learning 1:81-106
-
-    Examples:
-        >>> from decision_trees.id3 import ID3Classifier
-        >>> clf = ID3Classifier()
-        >>> clf.fit(X_train, y_train, feature_names)
-        >>> predictions = clf.predict(X_test)
+    Implements ID3 using Information Gain for categorical features.
     """
 
     def __init__(
