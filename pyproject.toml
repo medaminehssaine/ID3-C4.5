@@ -3,16 +3,53 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "decision-trees"
-version = "1.0.0"
-description = "ID3 and C4.5 decision tree implementations"
+name = "decision-trees-ml"
+version = "3.0.0"
+description = "Production-grade Decision Trees ML Framework with ID3, C4.5, Random Forest, AdaBoost, and Gradient Boosting"
 readme = "README.md"
 requires-python = ">=3.8"
-dependencies = []
+license = {text = "MIT"}
+authors = [
+    {name = "Hssaine Mohammed Amine"},
+    {name = "Benalla Ouissam"},
+    {name = "El Younsi Mohamed Taha"}
+]
+keywords = ["machine-learning", "decision-trees", "id3", "c45", "random-forest", "gradient-boosting"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.19.0",
+]
 
 [project.optional-dependencies]
-dev = ["pytest"]
-compare = ["scikit-learn"]
+dev = ["pytest>=6.0", "pytest-cov", "black", "flake8", "mypy"]
+viz = ["matplotlib>=3.3", "graphviz"]
+parallel = ["joblib>=1.0"]
+all = ["numpy", "joblib", "matplotlib", "graphviz", "pytest"]
+
+[project.scripts]
+decision-trees = "decision_trees.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yourusername/decision-trees"
+Documentation = "https://github.com/yourusername/decision-trees#readme"
+Repository = "https://github.com/yourusername/decision-trees"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

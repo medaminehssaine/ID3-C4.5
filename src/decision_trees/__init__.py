@@ -1,26 +1,18 @@
 """
 Decision Trees Package.
 
-A from-scratch implementation of ID3 and C4.5 decision tree algorithms
-following Quinlan's original papers, with professional OOP architecture.
-
-Core Classifiers:
-    - ID3Classifier: Classic ID3 with Information Gain (categorical only)
-    - C45Classifier: Extended C4.5 with Gain Ratio, continuous features, pruning
-
-Utilities:
-    - Hyperparameter tuning (GridSearchCV, RandomizedSearchCV)
-    - Evaluation metrics (confusion matrix, F1, precision, recall)
-    - Model serialization (save/load JSON)
-    - NumPy-optimized computations
-
-Reference:
-    Quinlan, J.R. (1986). "Induction of Decision Trees", Machine Learning 1:81-106
-    Quinlan, J.R. (1993). "C4.5: Programs for Machine Learning", Morgan Kaufmann
+A from-scratch implementation of ID3, C4.5, and Ensemble methods.
 """
 from .base import DecisionTreeBase
 from .id3 import ID3Classifier
 from .c45 import C45Classifier
+
+# Ensemble Methods
+from .ensemble import (
+    RandomForestClassifier,
+    AdaBoostClassifier,
+    GradientBoostingClassifier
+)
 
 # Utilities
 from .metrics import (
@@ -42,14 +34,21 @@ from .optimized import (
     FeatureImportance
 )
 
-__version__ = "2.0.0"
-__author__ = "Decision Tree Research Team"
+# Benchmarks
+from .benchmarks import BenchmarkSuite
+
+__version__ = "3.0.0"
+__author__ = "Hssaine, Benalla, El Younsi"
 
 __all__ = [
     # Core
     "DecisionTreeBase",
     "ID3Classifier",
     "C45Classifier",
+    # Ensemble
+    "RandomForestClassifier",
+    "AdaBoostClassifier",
+    "GradientBoostingClassifier",
     # Metrics
     "accuracy_score",
     "precision_score",
@@ -71,4 +70,6 @@ __all__ = [
     "gini_impurity",
     "gain_ratio_fast",
     "FeatureImportance",
+    # Benchmarks
+    "BenchmarkSuite",
 ]
