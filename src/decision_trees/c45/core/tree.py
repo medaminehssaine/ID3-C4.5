@@ -29,52 +29,7 @@ class C45Classifier(DecisionTreeBase):
     """
     C4.5 Decision Tree Classifier.
 
-    Implements Quinlan's C4.5 algorithm (1993), which extends ID3 with:
-    
-    1. **Gain Ratio**: Normalizes Information Gain by Split Information
-       to reduce bias toward features with many unique values.
-       
-    2. **Continuous Attributes**: Binary splits on numeric features
-       using optimal thresholds.
-       
-    3. **Missing Values**: Handles missing data by distributing samples.
-    
-    4. **Pruning**: Supports post-pruning via the pruning module.
-
-    Inherits from DecisionTreeBase, providing:
-        - Shared `fit`, `predict`, `predict_one` methods
-        - `_calculate_entropy` static method
-
-    Algorithm:
-        1. If stopping condition met → create leaf
-        2. For each feature:
-           - If continuous: find best threshold, compute GR
-           - If categorical: compute GR directly
-        3. Select feature/threshold with highest GR
-        4. Create split node
-        5. For continuous: binary split (≤t, >t), feature can be reused
-        6. For categorical: multi-way split, feature removed
-
-    Attributes:
-        max_depth: Maximum depth of the tree.
-        min_samples_split: Minimum samples required to split.
-        min_gain_ratio: Minimum GR required to make a split.
-        root: Root node of the fitted tree.
-        feature_names: Names of features.
-        classes_: Unique class labels.
-        n_features_: Number of features.
-        feature_types_: Detected type of each feature ('continuous'/'categorical').
-
-    Reference:
-        Quinlan, J.R. (1993). "C4.5: Programs for Machine Learning",
-        Morgan Kaufmann Publishers
-
-    Examples:
-        >>> from decision_trees.c45 import C45Classifier
-        >>> clf = C45Classifier(max_depth=5)
-        >>> clf.fit(X_train, y_train, feature_names)
-        >>> print(clf.feature_types_)  # ['continuous', 'categorical', ...]
-        >>> predictions = clf.predict(X_test)
+    Extends ID3 with Gain Ratio, continuous attributes, missing values, and pruning.
     """
 
     def __init__(

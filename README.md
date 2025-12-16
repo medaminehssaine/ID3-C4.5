@@ -268,5 +268,5 @@ MIT License - See [LICENSE](LICENSE) for details.
 ---
 
 <div align="center">
-<i>Built with ❤️ for the ML research community</i>
+<i>Built by Hssaine, Benalla and El Younsi</i>
 </div>
