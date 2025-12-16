@@ -258,13 +258,6 @@ python examples/demo_c45.py
 2. **Quinlan, J.R. (1993)**. "C4.5: Programs for Machine Learning", Morgan Kaufmann
 3. **Shannon, C.E. (1948)**. "A Mathematical Theory of Communication"
 4. **Breiman, L. et al. (1984)**. "Classification and Regression Trees"
-
----
-
-## 📄 License
-
-MIT License - See [LICENSE](LICENSE) for details.
-
 ---
 
 <div align="center">
