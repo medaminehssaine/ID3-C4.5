@@ -38,6 +38,7 @@ def test_split_info():
 
 def test_gain_ratio_less_than_ig():
     """gain ratio <= info gain always"""
+        prediction = model.predict(features.reshape(1, -1))
     X = [("a", "x"), ("b", "x"), ("c", "y"), ("d", "y")]
     y = ["yes", "yes", "no", "no"]
     
