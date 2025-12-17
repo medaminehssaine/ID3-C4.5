@@ -1,8 +1,8 @@
-# 🌳 Decision Trees & Ensembles
+# 🌳 Decision Trees
 
 <div align="center">
 
-**A professional implementation of ID3, C4.5, and Ensemble Methods**
+**A professional implementation of ID3 and C4.5**
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -11,21 +11,18 @@
 
 ---
 
-## � Overview
+## 📖 Overview
 
-This project implements foundational decision tree algorithms from scratch and extends them with powerful ensemble methods for a comparative study.
+This project implements foundational decision tree algorithms from scratch for a comparative study.
 
 | Algorithm | Type | Key Feature |
 |-----------|------|-------------|
 | **ID3** | Single Tree | Information Gain (Categorical) |
 | **C4.5** | Single Tree | Gain Ratio, Continuous, Pruning |
-| **Random Forest** | Ensemble (Bagging) | Variance Reduction, Parallel Training |
-| **AdaBoost** | Ensemble (Boosting) | Bias Reduction, Weighted Voting |
-| **Gradient Boosting** | Ensemble (Boosting) | Optimization of Loss Function |
 
 ---
 
-## � Quick Start
+##  Quick Start
 
 ### Installation
 
@@ -36,15 +33,11 @@ pip install -e .
 ### Usage
 
 ```python
-from decision_trees import C45Classifier, RandomForestClassifier
-
-# Single Tree
-clf = C45Classifier(max_depth=5)
-clf.fit(X_train, y_train)
-
-# Random Forest
-rf = RandomForestClassifier(n_estimators=100)
-rf.fit(X_train, y_train)
+from decision_trees import C45Classifier
+ 
+ # Single Tree
+ clf = C45Classifier(max_depth=5)
+ clf.fit(X_train, y_train)
 ```
 
 ---
@@ -61,21 +54,18 @@ python comparative_study.py
 
 ```text
 COMPARATIVE STUDY: Trees vs Ensembles
-============================================================
-
-[Dataset: Iris (Multiclass)]
-Model                | Accuracy   | Std Dev    | Time (s)  
-------------------------------------------------------------
-id3                  | 0.9400     | 0.0400     | 0.0012
-c45                  | 0.9533     | 0.0320     | 0.0025
-rf                   | 0.9667     | 0.0210     | 0.0450
-
-[Dataset: Breast Cancer (Binary)]
-Model                | Accuracy   | Std Dev    | Time (s)  
-------------------------------------------------------------
-c45                  | 0.9350     | 0.0250     | 0.0150
-rf                   | 0.9580     | 0.0120     | 0.1200
-gb                   | 0.9620     | 0.0150     | 0.0850
+ ============================================================
+ 
+ [Dataset: Iris (Multiclass)]
+ Model                | Accuracy   | Std Dev    | Time (s)  
+ ------------------------------------------------------------
+ id3                  | 0.9400     | 0.0400     | 0.0012
+ c45                  | 0.9533     | 0.0320     | 0.0025
+ 
+ [Dataset: Breast Cancer (Binary)]
+ Model                | Accuracy   | Std Dev    | Time (s)  
+ ------------------------------------------------------------
+ c45                  | 0.9350     | 0.0250     | 0.0150
 ```
 
 ---
@@ -88,10 +78,6 @@ src/decision_trees/
 ├── base.py              # Abstract Base Class
 ├── id3/                 # ID3 Implementation
 ├── c45/                 # C4.5 Implementation
-├── ensemble/            # Ensemble Methods
-│   ├── random_forest.py
-│   ├── adaboost.py
-│   └── gradient_boosting.py
 ├── benchmarks/          # Benchmarking Suite
 ├── metrics.py           # Evaluation Metrics
 └── serialization.py     # Save/Load Models

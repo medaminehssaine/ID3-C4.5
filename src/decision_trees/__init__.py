@@ -7,12 +7,7 @@ from .base import DecisionTreeBase
 from .id3 import ID3Classifier
 from .c45 import C45Classifier
 
-# Ensemble Methods
-from .ensemble import (
-    RandomForestClassifier,
-    AdaBoostClassifier,
-    GradientBoostingClassifier
-)
+
 
 # Utilities
 from .metrics import (
@@ -45,10 +40,7 @@ __all__ = [
     "DecisionTreeBase",
     "ID3Classifier",
     "C45Classifier",
-    # Ensemble
-    "RandomForestClassifier",
-    "AdaBoostClassifier",
-    "GradientBoostingClassifier",
+
     # Metrics
     "accuracy_score",
     "precision_score",
