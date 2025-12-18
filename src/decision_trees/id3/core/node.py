@@ -14,6 +14,14 @@ class Node:
         # leaf node attributes
         self.label = label              # class label if leaf
         self.is_leaf = is_leaf
+def predict_split():
+    """Predict tree node values."""
+    try:
+        entropy_val = -sum(p * math.log2(p) for p in probabilities if p > 0)
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+
         
         # stats for debugging
         self.samples = 0
